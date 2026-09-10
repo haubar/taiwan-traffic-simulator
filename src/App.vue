@@ -14,7 +14,7 @@ const {simSec,speed,playing,timeLabel,setNow}=useSimulation()
 const {activeTrains}=useTrainPosition(lines,schedules,simSec)
 const selected=ref(null)
 const viewMode=ref('flat')
-const journeyMode=ref(false)
+const journeyMode=ref('overview')
 onMounted(async () => { schedules.value = await loadOfficialSchedules(providers, schedules.value) })
 </script>
 <template>
@@ -22,7 +22,7 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
   <header><div><p class="eyebrow">NORTHERN TAIWAN TRAFFIC DIGITAL TWIN</p><h1>台灣軌道交通模擬器</h1><p class="sub">北部路網：板南線 + 桃園機場捷運 + 新北環狀線</p></div><div class="clock"><span class="live-dot"></span>{{formatSimulationTime(simSec)}}</div></header>
   <section class="toolbar">
     <button @click="setNow">現在</button><button @click="playing=!playing">{{playing?'暫停':'播放'}}</button>
-    <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button><button :class="{active:viewMode==='3d'}" @click="viewMode=viewMode==='3d'?'flat':'3d'">{{viewMode==='3d'?'平面圖':'3D 地圖'}}</button><button v-if="viewMode==='3d'" :class="{active:journeyMode}" @click="journeyMode=!journeyMode">{{journeyMode?'總覽模式':'跟車旅程'}}</button>
+    <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button><button :class="{active:viewMode==='3d'}" @click="viewMode=viewMode==='3d'?'flat':'3d'">{{viewMode==='3d'?'平面圖':'3D 地圖'}}</button><template v-if="viewMode==='3d'"><button :class="{active:journeyMode==='overview'}" @click="journeyMode='overview'">總覽</button><button :class="{active:journeyMode==='follow'}" @click="journeyMode='follow'">跟車旅程</button><button :class="{active:journeyMode==='cab'}" @click="journeyMode='cab'">車內視角</button></template>
     <span class="count">運行中 {{activeTrains.length}} 列</span>
   </section>
   <ThreeRailMap v-if="viewMode==='3d'" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/>

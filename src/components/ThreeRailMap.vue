@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: Boolean })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
@@ -94,11 +94,20 @@ function animate() {
   const focus = trainMeshes.get(props.selectedTrain?.id) || trainMeshes.get(props.trains[0]?.id)
   if (props.journeyMode && focus) {
     const direction = focus.userData.direction === 1 ? -1 : 1
-    const desiredCamera = new THREE.Vector3(focus.position.x - direction * 2.8, 1.55, focus.position.z + 1.65)
-    camera.position.lerp(desiredCamera, 0.075)
-    controls.target.lerp(new THREE.Vector3(focus.position.x, 0.3, focus.position.z), 0.12)
-    controls.minDistance = 1.2
-    controls.maxDistance = 8
+    if (props.journeyMode === 'cab') {
+      const cabPosition = new THREE.Vector3(focus.position.x + direction * 0.12, 0.58, focus.position.z)
+      const viewAhead = new THREE.Vector3(focus.position.x + direction * 3, 0.48, focus.position.z)
+      camera.position.lerp(cabPosition, 0.18)
+      controls.target.lerp(viewAhead, 0.18)
+      controls.minDistance = 0.2
+      controls.maxDistance = 3
+    } else {
+      const desiredCamera = new THREE.Vector3(focus.position.x - direction * 2.8, 1.55, focus.position.z + 1.65)
+      camera.position.lerp(desiredCamera, 0.075)
+      controls.target.lerp(new THREE.Vector3(focus.position.x, 0.3, focus.position.z), 0.12)
+      controls.minDistance = 1.2
+      controls.maxDistance = 8
+    }
   } else {
     controls.minDistance = 5
     controls.maxDistance = 32
@@ -181,7 +190,7 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
 </script>
 
 <template>
-  <div class="three-map-wrap"><div class="map-caption"><span>{{ journeyMode ? '列車旅程視角' : '3D 地圖總覽' }}</span><span><small>{{ journeyMode ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
+  <div class="three-map-wrap"><div class="map-caption"><span>{{ journeyMode === 'cab' ? '車內行進視角' : journeyMode === 'follow' ? '列車跟車視角' : '3D 地圖總覽' }}</span><span><small>{{ journeyMode === 'cab' ? '鏡頭位於列車前端 · 朝行車方向觀察' : journeyMode === 'follow' ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
 </template>
 
 <style scoped>
