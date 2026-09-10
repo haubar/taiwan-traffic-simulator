@@ -1,43 +1,57 @@
 # Taiwan Traffic Simulator / 台灣軌道交通模擬器
 
-以「交通數位分身」概念呈現指定時間各列車在軌道路網中的推估位置。
+以交通數位分身概念，將台灣軌道交通的列車狀態呈現在 schematic 控制中心介面。目前展示台北捷運板南線 BL01–BL23 與桃園機場捷運 A1–A22，並可在指定時間查看列車所在站間、下一站、ETA 與站間進度。
 
-## MVP
-- 台北捷運板南線 BL01–BL23
-- 桃園機場捷運 A1–A22
-- 普通車 / 直達車視覺區分
-- 目前時間、暫停、1x / 5x / 20x 模擬
-- 時間軸拖曳
-- 列車在兩站之間線性插值平滑移動
-- 點擊列車顯示站間進度、下一站與預計抵達
-- Demo 模式不需要 API Key
+## Architecture
 
-## 官方資料設計
-北捷官方 API 服務包含車站時刻表、列車位置、列車到站資訊、發車班距與相鄰站旅行時間。其中列車位置/到站資訊屬會員專屬 API。因此正式 Live 模式應在 Serverless Function 端保存憑證，再轉為統一 TrainState 給前端。
+```text
+Vue UI → providerService → TRTCProvider / TYMCProvider → Netlify Function → 官方資料 adapter + cache
+```
 
-桃園捷運政府開放資料包含車站基本資料與「列車站間運行時間」，欄位包含路線代碼、車種、起訖站及站間行駛時間，可用於班表模式的位置內插。
+`src/providers/types.js` 定義統一的 `TrainState`：`id`、`operator`、`lineId`、`trainType`、`direction`、`fromStation`、`toStation`、`departureTime`、`arrivalTime`、`progress`、`source`、`updatedAt`。UI 只接收 provider 資料，不直接讀政府 API。
 
-## 本地啟動
+`TRTCProvider` 保留北捷會員 API adapter 邊界。未設定 key 時使用板南線 SCHEDULED fallback；不猜測官方會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方站間運行秒數，官方資料不可用時回到明確命名的 demo schedules。未來可依同一介面加入台中捷運、高雄捷運、台鐵、高鐵、公車與道路交通。
+
+## Data flow
+
+Vue 啟動時先以 demo schedule 呈現可用畫面，再由 `TYMCProvider` 呼叫 `/.netlify/functions/trains?operator=TYMC`。Netlify Function server-side 抓取並快取官方 CSV 15 分鐘，前端不直接連政府資料站。位置 composable 依指定模擬時間，在站間運行秒數間線性 interpolation。
+
+## TrainState 與資料可信度
+
+- `LIVE`：官方即時列車位置或到站資料；目前尚未啟用。
+- `ESTIMATED`：由即時 ETA、營運狀態或其他即時訊號推算；目前尚未啟用。
+- `SCHEDULED`：依官方時刻表與站間運行時間推算，絕不代表 GPS 即時位置。
+
+目前畫面是 SCHEDULED。桃捷官方站間秒數是正式公開資料，但仍用於時刻表推算，因此 badge 保持 SCHEDULED。
+
+## 官方資料來源
+
+- [桃園捷運列車站間運行時間](https://data.gov.tw/dataset/76721)：桃園市政府資料開放平臺，欄位含路線、車種、站間序號、起訖站代號與站間行駛時間。下載 URL 與 parser 位於 `netlify/providers/tymc.mjs`。
+- [桃捷各站時刻表](https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable.html)：提供 A1–A22、普通車／直達車與停靠站規則，也說明實際到站依當日運行狀況而定。
+- 台北捷運官方 API：正式列車位置／到站資料需會員權限。本專案只預留 `TRTC_API_BASE` 與 `TRTC_API_KEY` adapter，不宣稱目前有 LIVE 連線。
+
+## Local development
+
 ```bash
 npm install
 npm run dev
-```
-
-## Build
-```bash
 npm run build
 ```
 
-## Netlify
-直接連接 GitHub repository；`netlify.toml` 已設定 build 與 functions 目錄。
+需要 Node.js 20 或更新版本。Function 不可用時，Vite 畫面仍保留 demo fallback。
 
-## 下一步
-1. 新增 provider 層：`TRTCProvider` / `TYMCProvider`
-2. TRTC Function 串官方會員 API，將「下一站＋剩餘秒數」轉為 0~1 progress
-3. 桃捷下載/快取官方時刻與站間時間，替代 Demo schedules
-4. 增加所有北捷路線
-5. 增加台中/高雄捷運、台鐵、高鐵
-6. 最後加入公車 GPS、道路 VD、路況事件形成 Taiwan Traffic Digital Twin
+## Environment variables
 
-## 資料可信度
-前端建議固定呈現 `LIVE / ESTIMATED / SCHEDULED`，不可把班表插值誤標為 GPS 即時位置。
+Netlify Functions 使用 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 server-side。Vite adapter 檢查用變數為 `VITE_TRTC_API_BASE`、`VITE_TRTC_API_KEY`。設定變數不會自動宣稱 LIVE，仍需完成官方欄位 mapping 與認證流程。
+
+## Netlify deployment
+
+`netlify.toml` 已指定 `npm run build`、`dist` 與 `netlify/functions`。連接 GitHub repository 後，在 Netlify Site settings 設定環境變數即可部署。Function 會快取桃捷公開資料 15 分鐘。
+
+## Roadmap
+
+1. 驗證北捷會員 API 欄位，完成 LIVE／ESTIMATED adapter。
+2. 以桃捷官方完整班表取代 demo departure seeds，支援日期與服務異動。
+3. 加入北捷其他路線與正式站間資料。
+4. 加入台中捷運、高雄捷運、台鐵與高鐵。
+5. 擴充公車 GPS、道路 VD 與事件資料，形成台灣交通數位分身。

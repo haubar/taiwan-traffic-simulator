@@ -1,16 +1,18 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { lines } from './data/network'
-import { createDemoSchedules } from './data/demoSchedules'
 import { useSimulation, formatClock } from './composables/useSimulation'
 import { useTrainPosition } from './composables/useTrainPosition'
+import { createTransitProviders, getInitialSchedules, loadOfficialSchedules } from './services/providerService'
 import RailMap from './components/RailMap.vue'
 import Timeline from './components/Timeline.vue'
 
-const schedules=createDemoSchedules(lines)
+const providers = createTransitProviders(lines)
+const schedules=ref(getInitialSchedules(providers))
 const {simSec,speed,playing,timeLabel,setNow}=useSimulation()
 const {activeTrains}=useTrainPosition(lines,schedules,simSec)
 const selected=ref(null)
+onMounted(async () => { schedules.value = await loadOfficialSchedules(providers, schedules.value) })
 </script>
 <template>
 <main class="app-shell">
@@ -25,8 +27,8 @@ const selected=ref(null)
   <section v-if="selected" class="detail">
     <strong>{{selected.trainId}}</strong><span>{{selected.operator}} · {{selected.lineId}} · {{selected.trainType==='EXPRESS'?'直達車':'普通車'}}</span>
     <span>{{selected.fromName}} → {{selected.toName}}</span><span>區間進度 {{Math.round(selected.progress*100)}}%</span>
-    <span>預計抵達 {{formatClock(selected.arrivalSec)}}</span><span class="source">{{selected.source}}</span>
+    <span>預計抵達 {{formatClock(selected.arrivalSec)}}</span><span class="source" :class="selected.source.toLowerCase()">{{selected.source}}</span>
   </section>
-  <section class="legend"><span>● Demo/Scheduled：目前使用內建班表模擬資料</span><span>下一步：接 TRTC 會員即時列車 API 與桃捷官方資料來源</span></section>
+  <section class="legend"><span>資料狀態：LIVE 即時 · ESTIMATED 推估 · SCHEDULED 時刻表</span><span>目前為 SCHEDULED fallback；不代表 GPS 即時位置</span></section>
 </main>
 </template>
