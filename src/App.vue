@@ -29,7 +29,7 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
   <Timeline v-model="simSec"/>
   <section v-if="selected" class="detail">
     <strong>{{selected.trainId}}</strong><span>{{selected.operator}} · {{selected.lineId}} · {{selected.trainType==='EXPRESS'?'直達車':'普通車'}}</span>
-    <span>{{selected.direction===0?'往終點':'往起點'}} · {{selected.fromName}} → {{selected.toName}}</span><span>區間進度 {{Math.round(selected.progress*100)}}%</span>
+    <span>{{selected.direction===0?'往終點':'往起點'}} · {{selected.fromName}} → {{selected.toName}}</span><span>{{selected.status==='DWELLING'?'停靠中':'行駛中'}} · 進度 {{Math.round(selected.progress*100)}}%</span>
     <span>預計抵達 {{formatSimulationTime(selected.arrivalSec)}}</span><span class="source" :class="selected.source.toLowerCase()">{{selected.source}}</span><small>更新 {{selected.updatedAt}}</small>
   </section>
   <section class="legend"><span>資料狀態：LIVE 即時 · ESTIMATED 推估 · SCHEDULED 時刻表</span><span>目前為 SCHEDULED fallback；不代表 GPS 即時位置</span></section>

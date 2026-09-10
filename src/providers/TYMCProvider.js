@@ -17,7 +17,7 @@ export class TYMCProvider {
       const pair = `${schedule.fromStation}->${schedule.toStation}`
       const typed = rows.find((row) => `${row.fromStation}->${row.toStation}` === pair && (schedule.trainType === 'EXPRESS') === String(row.vehicleType).includes('直達'))
       const seconds = typed?.seconds || byPair.get(`${pair}->${schedule.trainType === 'EXPRESS' ? '直達車' : '普通車'}`)
-      return seconds ? { ...schedule, arrivalSec: schedule.departureSec + seconds } : schedule
+      return seconds ? { ...schedule, arrivalSec: schedule.departureSec + seconds, dwellUntilSec: schedule.departureSec + seconds + 18 } : schedule
     })
   }
 

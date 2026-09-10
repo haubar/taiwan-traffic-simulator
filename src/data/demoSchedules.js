@@ -6,7 +6,7 @@ function makeTrips(lineId, operator, stations, start, headway, runtime, count, e
     const seq=dir?[...stations].reverse():stations
     for(let i=0;i<seq.length-1;i++){
       const depart=t0+i*runtime
-      trips.push({id:`${operator}-${lineId}-${dayOffset}-${n}-${i}`,operator,lineId,trainType:express?'EXPRESS':'LOCAL',direction:dir,fromStation:seq[i],toStation:seq[i+1],departureSec:depart+dayOffset*86400,arrivalSec:depart+dayOffset*86400+runtime-18,source:'SCHEDULED',trainId:`${operator}-${lineId}-${dayOffset}-${String(n+1).padStart(3,'0')}`})
+      trips.push({id:`${operator}-${lineId}-${dayOffset}-${n}-${i}`,operator,lineId,trainType:express?'EXPRESS':'LOCAL',direction:dir,fromStation:seq[i],toStation:seq[i+1],departureSec:depart+dayOffset*86400,arrivalSec:depart+dayOffset*86400+runtime-18,dwellUntilSec:depart+dayOffset*86400+runtime,source:'SCHEDULED',trainId:`${operator}-${lineId}-${dayOffset}-${String(n+1).padStart(3,'0')}`})
     }
   }
   return trips

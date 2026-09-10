@@ -17,6 +17,7 @@
  * @property {string} updatedAt
  * @property {number} departureSec
  * @property {number} arrivalSec
+ * @property {'RUNNING'|'DWELLING'} status
  */
 
 export const SOURCE_LABELS = {
