@@ -1,21 +1,23 @@
+import { applyGeography } from './geography.js'
+
 export const lines = [
   {
     id:'BL', operator:'TRTC', name:'板南線', color:'#2774c9',
     stations:[
       ['BL01','頂埔'],['BL02','永寧'],['BL03','土城'],['BL04','海山'],['BL05','亞東醫院'],['BL06','府中'],['BL07','板橋'],['BL08','新埔'],['BL09','江子翠'],['BL10','龍山寺'],['BL11','西門'],['BL12','台北車站'],['BL13','善導寺'],['BL14','忠孝新生'],['BL15','忠孝復興'],['BL16','忠孝敦化'],['BL17','國父紀念館'],['BL18','市政府'],['BL19','永春'],['BL20','後山埤'],['BL21','昆陽'],['BL22','南港'],['BL23','南港展覽館']
-    ].map((s,i,a)=>({id:s[0],name:s[1],x:60+i*(1120/(a.length-1)),y:105+Math.sin(i/(a.length-1)*Math.PI)*38}))
+    ].map((s,i,a)=>applyGeography({id:s[0],name:s[1],x:60+i*(1120/(a.length-1)),y:105+Math.sin(i/(a.length-1)*Math.PI)*38}))
   },
   {
     id:'A', operator:'TYMC', name:'桃園機場捷運', color:'#8b2f8f',
     stations:[
       ['A1','台北車站'],['A2','三重'],['A3','新北產業園區'],['A4','新莊副都心'],['A5','泰山'],['A6','泰山貴和'],['A7','體育大學'],['A8','長庚醫院'],['A9','林口'],['A10','山鼻'],['A11','坑口'],['A12','機場第一航廈'],['A13','機場第二航廈'],['A14a','機場旅館'],['A15','大園'],['A16','橫山'],['A17','領航'],['A18','高鐵桃園站'],['A19','桃園體育園區'],['A20','興南'],['A21','環北'],['A22','老街溪']
-    ].map((s,i,a)=>({id:s[0],name:s[1],x:60+i*(1120/(a.length-1)),y:210+(i/(a.length-1))*170+Math.sin(i/(a.length-1)*Math.PI)*18}))
+    ].map((s,i,a)=>applyGeography({id:s[0],name:s[1],x:60+i*(1120/(a.length-1)),y:210+(i/(a.length-1))*170+Math.sin(i/(a.length-1)*Math.PI)*18}))
   },
   {
     id:'Y', operator:'NTMC', name:'環狀線', color:'#e5bd36',
     stations:[
       ['Y07','大坪林'],['Y08','十四張'],['Y09','秀朗橋'],['Y10','景平'],['Y11','景安'],['Y12','中和'],['Y13','橋和'],
       ['Y14','中原'],['Y15','板新'],['Y16','板橋'],['Y17','新埔民生'],['Y18','頭前庄'],['Y19','幸福'],['Y20','新北產業園區']
-    ].map((s,i,a)=>({id:s[0],name:s[1],x:60+i*(1120/(a.length-1)),y:385+Math.sin(i/(a.length-1)*Math.PI)*48}))
+    ].map((s,i,a)=>applyGeography({id:s[0],name:s[1],x:60+i*(1120/(a.length-1)),y:385+Math.sin(i/(a.length-1)*Math.PI)*48}))
   }
 ]
