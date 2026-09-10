@@ -2,3 +2,6 @@
 command = "npm run build"
 publish = "dist"
 functions = "netlify/functions"
+
+[context.production.environment]
+  VITE_ENABLE_DEMO_DATA = "false"
