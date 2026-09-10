@@ -3,9 +3,10 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-const props = defineProps({ lines: Array, trains: Array })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object })
+const emit = defineEmits(['select'])
 const viewport = ref(null)
-let renderer, animationFrame, scene, camera, controls
+let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
 
@@ -72,6 +73,8 @@ function syncTrains() {
     if (!mesh) { mesh = createTrainMesh(train); scene.add(mesh); trainMeshes.set(train.id, mesh) }
     mesh.userData.target = world(train.x, train.y)
     mesh.userData.direction = train.direction
+    mesh.userData.train = train
+    mesh.scale.setScalar(props.selectedTrain?.id === train.id ? 1.18 : 1)
   })
   trainMeshes.forEach((mesh, id) => { if (!activeIds.has(id)) { scene.remove(mesh); trainMeshes.delete(id) } })
 }
@@ -95,6 +98,17 @@ function resize() {
   renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight)
 }
 
+function pickTrain(event) {
+  const bounds = renderer.domElement.getBoundingClientRect()
+  const pointer = new THREE.Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
+  raycaster.setFromCamera(pointer, camera)
+  const hit = raycaster.intersectObjects([...trainMeshes.values()], true)[0]
+  if (!hit) return
+  let object = hit.object
+  while (object && !object.userData.train) object = object.parent
+  if (object?.userData.train) emit('select', object.userData.train)
+}
+
 onMounted(() => {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x0b1929)
@@ -105,6 +119,8 @@ onMounted(() => {
   renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight)
   renderer.shadowMap.enabled = true
   viewport.value.appendChild(renderer.domElement)
+  raycaster = new THREE.Raycaster()
+  renderer.domElement.addEventListener('click', pickTrain)
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
@@ -122,7 +138,8 @@ onMounted(() => {
   window.addEventListener('resize', resize)
 })
 watch(() => props.trains, syncTrains, { deep: true })
-onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); controls?.dispose(); renderer?.dispose(); trainMeshes.clear() })
+watch(() => props.selectedTrain, syncTrains, { deep: true })
+onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); controls?.dispose(); renderer?.dispose(); trainMeshes.clear() })
 </script>
 
 <template>

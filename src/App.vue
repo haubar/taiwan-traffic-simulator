@@ -24,7 +24,7 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
     <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button><button :class="{active:viewMode==='3d'}" @click="viewMode=viewMode==='3d'?'flat':'3d'">{{viewMode==='3d'?'平面圖':'3D 地圖'}}</button>
     <span class="count">運行中 {{activeTrains.length}} 列</span>
   </section>
-  <ThreeRailMap v-if="viewMode==='3d'" :lines="lines" :trains="activeTrains"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/>
+  <ThreeRailMap v-if="viewMode==='3d'" :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/>
   <Timeline v-model="simSec"/>
   <section v-if="selected" class="detail">
     <strong>{{selected.trainId}}</strong><span>{{selected.operator}} · {{selected.lineId}} · {{selected.trainType==='EXPRESS'?'直達車':'普通車'}}</span>
