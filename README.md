@@ -53,5 +53,5 @@ Netlify Functions 使用 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 s
 1. 驗證北捷會員 API 欄位，完成 LIVE／ESTIMATED adapter。
 2. 以桃捷官方完整班表取代 demo departure seeds，支援日期與服務異動。
 3. 加入北捷其他路線與正式站間資料。
-4. 加入台中捷運、高雄捷運、台鐵與高鐵。
-5. 擴充公車 GPS、道路 VD 與事件資料，形成台灣交通數位分身。
+4. 加入北捷其他路線、新北環狀線、淡海輕軌與安坑輕軌。
+5. 加入北部台鐵、高鐵與公車 GPS，逐步形成北部交通數位分身。
