@@ -1,4 +1,4 @@
-function makeTrips(lineId, operator, stations, start, headway, runtime, count, express=false, dayOffset=0){
+const makeTrips = (lineId, operator, stations, start, headway, runtime, count, express=false, dayOffset=0) => {
   const trips=[]
   for(let n=0;n<count;n++){
     const t0=start+n*headway
@@ -11,7 +11,7 @@ function makeTrips(lineId, operator, stations, start, headway, runtime, count, e
   }
   return trips
 }
-export function createDemoSchedules(lines){
+export const createDemoSchedules = (lines) => {
   const bl=lines.find(l=>l.id==='BL').stations.map(s=>s.id)
   const a=lines.find(l=>l.id==='A').stations.map(s=>s.id)
   const y=lines.find(l=>l.id==='Y').stations.map(s=>s.id)

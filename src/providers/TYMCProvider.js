@@ -1,17 +1,9 @@
-import { ScheduledProvider } from './scheduledProvider'
+import { createScheduledProvider } from './scheduledProvider'
 
-export class TYMCProvider {
-  constructor(lines) {
-    this.lines = lines
-    this.fallback = new ScheduledProvider('TYMC', lines)
-    this.source = 'SCHEDULED'
-  }
-
-  getSchedules() {
-    return this.fallback.getSchedules()
-  }
-
-  applyInterstationTimes(schedules, rows) {
+export const createTYMCProvider = (lines) => {
+  const fallback = createScheduledProvider('TYMC', lines)
+  let source = 'SCHEDULED'
+  const applyInterstationTimes = (schedules, rows) => {
     const byPair = new Map(rows.map((row) => [`${row.fromStation}->${row.toStation}->${row.vehicleType}`, row.seconds]))
     return schedules.map((schedule) => {
       const pair = `${schedule.fromStation}->${schedule.toStation}`
@@ -21,14 +13,14 @@ export class TYMCProvider {
     })
   }
 
-  async loadOfficialData(endpoint = '/.netlify/functions/trains?operator=TYMC') {
+  const loadOfficialData = async (endpoint = '/.netlify/functions/trains?operator=TYMC') => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const response = await fetch(endpoint)
         if (!response.ok) throw new Error(`TYMC provider ${response.status}`)
         const payload = await response.json()
         if (Array.isArray(payload.interstationTimes) && payload.interstationTimes.every((row) => row.fromStation && row.toStation && Number.isFinite(row.seconds))) {
-          this.source = 'SCHEDULED'
+          source = 'SCHEDULED'
           return payload
         }
         throw new Error('TYMC provider schema validation failed')
@@ -39,4 +31,6 @@ export class TYMCProvider {
     }
     return null
   }
+
+  return { getSchedules: () => fallback.getSchedules(), applyInterstationTimes, loadOfficialData, get source() { return source } }
 }

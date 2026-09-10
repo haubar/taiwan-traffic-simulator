@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { formatClock } from './useSimulation'
-export function useTrainPosition(lines,schedules,simSec){
+export const useTrainPosition = (lines,schedules,simSec) => {
   const activeTrains=computed(()=>{
     const grouped=new Map()
     for(const seg of schedules.value ?? schedules){

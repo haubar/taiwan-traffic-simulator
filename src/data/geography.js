@@ -12,7 +12,7 @@ const stationGeo = {
 }
 
 const bounds = { minLon: 121.19, maxLon: 121.63, minLat: 24.94, maxLat: 25.10 }
-export function applyGeography(station) {
+export const applyGeography = (station) => {
   const point = stationGeo[station.id]
   if (!point) return station
   const [lat, lon] = point

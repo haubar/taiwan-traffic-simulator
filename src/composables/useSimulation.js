@@ -1,10 +1,10 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 
-export function secOfDay(d=new Date()) { return d.getHours()*3600+d.getMinutes()*60+d.getSeconds() }
-export function formatClock(sec){ const normalized=((Math.floor(sec)%86400)+86400)%86400; const h=Math.floor(normalized/3600),m=Math.floor(normalized%3600/60),s=normalized%60; return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':') }
-export function formatSimulationTime(sec) { return `${Math.floor(sec / 86400) ? '+1日 ' : ''}${formatClock(sec)}` }
+export const secOfDay = (d=new Date()) => d.getHours()*3600+d.getMinutes()*60+d.getSeconds()
+export const formatClock = (sec) => { const normalized=((Math.floor(sec)%86400)+86400)%86400; const h=Math.floor(normalized/3600),m=Math.floor(normalized%3600/60),s=normalized%60; return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':') }
+export const formatSimulationTime = (sec) => `${Math.floor(sec / 86400) ? '+1日 ' : ''}${formatClock(sec)}`
 
-export function useSimulation(){
+export const useSimulation = () => {
   const simSec=ref(secOfDay())
   const speed=ref(1)
   const playing=ref(true)

@@ -20,7 +20,7 @@ Vue UI → providerService → TRTCProvider / TYMCProvider → Netlify Function 
 
 `src/providers/types.js` 定義統一的 `TrainState`：`id`、`operator`、`lineId`、`trainType`、`direction`、`fromStation`、`toStation`、`departureTime`、`arrivalTime`、`progress`、`source`、`updatedAt`。UI 只接收 provider 資料，不直接讀政府 API。
 
-`TRTCProvider` 保留北捷會員 API adapter 邊界。未設定 key 時使用板南線 SCHEDULED fallback；不猜測官方會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方站間運行秒數，`NTMCProvider` 目前使用明確命名的環狀線 demo schedule。官方資料不可用時回到 fallback。未來可依同一介面加入北部台鐵、高鐵、公車與道路交通。
+`TRTCProvider` 保留北捷會員 API adapter 邊界。未設定 key 時使用北捷各線 SCHEDULED fallback；不猜測官方會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方站間運行秒數，`NTMCProvider` 目前使用明確命名的環狀線 demo schedule。官方資料不可用時回到 fallback。完整功能與變更紀錄請見 [`docs/FEATURES.md`](docs/FEATURES.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 與 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## Data flow
 
@@ -65,4 +65,4 @@ Netlify Functions 使用 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 s
 2. 以桃捷官方完整班表取代 demo departure seeds，支援日期與服務異動。
 3. 取得四條北捷新增路線的官方站間運行資料與完整班表。
 4. 完成四條新增北捷路線的 LIVE／ESTIMATED adapter。
-5. 加入北部台鐵、高鐵與公車 GPS，逐步形成北部交通數位分身。
+5. （目前範圍不包含台鐵、高鐵、公車與道路交通。）

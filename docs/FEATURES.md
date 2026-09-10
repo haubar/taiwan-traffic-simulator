@@ -1,0 +1,77 @@
+# 功能與操作說明
+
+## 目前路線
+
+本專案目前只聚焦北部捷運與桃園機場捷運：
+
+| Operator | 路線 | 站點 | 目前資料狀態 |
+| --- | --- | --- | --- |
+| TRTC | 板南線 BL | BL01–BL23 | SCHEDULED fallback |
+| TRTC | 淡水信義線 R | R02–R28 | SCHEDULED fallback |
+| TRTC | 松山新店線 G | G01–G19 | SCHEDULED fallback |
+| TRTC | 中和新蘆線 O | O01–O21、O50–O54 | SCHEDULED fallback |
+| TRTC | 文湖線 BR | BR01–BR24 | 班距式 SCHEDULED fallback |
+| TYMC | 桃園機場捷運 A | A1–A22 | 官方站間秒數＋SCHEDULED fallback |
+| NTMC | 新北環狀線 Y | Y07–Y20 | SCHEDULED fallback |
+
+台鐵、高鐵、公車、道路交通與輕軌不在目前範圍內。
+
+## 平面圖
+
+平面圖適合查看全線列車數量、路線顏色、行駛方向與站間進度。點選列車後，詳情面板會顯示：
+
+- train ID、營運者與路線
+- 普通車／直達車
+- 行駛方向
+- 目前區段與下一站
+- 站間進度
+- ETA
+- `LIVE`／`ESTIMATED`／`SCHEDULED`
+- 更新時間
+
+## 3D 地圖
+
+工具列可以切換 `3D 地圖`，再選擇下列模式：
+
+- `總覽`：從全域觀察路網與所有列車。
+- `跟車旅程`：鏡頭跟隨選取的列車；未選取時跟隨第一列運行中列車。
+- `車內視角`：鏡頭位於列車前端，朝下一站方向觀察。
+
+3D 操作：
+
+- 左鍵拖曳：旋轉視角。
+- 右鍵拖曳：平移地圖。
+- 滾輪：拉近／拉遠。
+- `重置視角`：回到目前模式的預設鏡頭。
+- 滑鼠移到列車：列車放大並顯示可選取游標。
+- 點選列車：同步更新詳情面板與跟車目標。
+
+## 可愛風
+
+3D 工具列的 `可愛風`會切換柔和色彩、圓潤車體、表情車頭、樹木與糖果色建築。它只改變 renderer 的材質與環境，不改變列車位置、時間、ETA 或資料可信度。
+
+## 時間與行進模型
+
+- 模擬時間支援 0–48 小時，可跨午夜。
+- 每列列車由起站、下一站、發車秒數、抵達秒數與停站結束秒數組成。
+- 行駛期間以站間進度 interpolation 移動。
+- 抵達後停在下一站，直到下一段發車。
+- 3D 車輛位置以平滑 lerp 追蹤模擬位置，提供連續視覺運動。
+- 目前不模擬真實號誌、閉塞、乘客量或突發事件。
+
+## 可信度規則
+
+底圖或車站座標不等於即時列車定位：
+
+- `LIVE` 只允許由官方即時列車位置／到站資料產生。
+- `ESTIMATED` 只允許由即時 ETA 或營運訊號推算。
+- `SCHEDULED` 是時刻表與站間時間推算，不能解讀為 GPS。
+
+相關程式位置：
+
+- 路線：`src/data/network.js`
+- 地理座標：`src/data/geography.js`
+- 位置計算：`src/composables/useTrainPosition.js`
+- 3D renderer：`src/components/ThreeRailMap.vue`
+- provider：`src/providers/`
+- server-side 官方資料：`netlify/providers/`、`netlify/functions/`

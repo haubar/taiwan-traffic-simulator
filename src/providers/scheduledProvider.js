@@ -1,12 +1,5 @@
 import { createDemoSchedules } from '../data/demoSchedules'
 
-export class ScheduledProvider {
-  constructor(operator, lines) {
-    this.operator = operator
-    this.lines = lines
-  }
-
-  getSchedules() {
-    return createDemoSchedules(this.lines).filter((schedule) => schedule.operator === this.operator)
-  }
-}
+export const createScheduledProvider = (operator, lines) => ({
+  getSchedules: () => createDemoSchedules(lines).filter((schedule) => schedule.operator === operator)
+})

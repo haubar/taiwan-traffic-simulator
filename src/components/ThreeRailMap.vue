@@ -12,7 +12,7 @@ let hoveredTrainId = null
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
 const cute = () => props.visualStyle === 'cute'
 
-function addMapBase() {
+const addMapBase = () => {
   const ground = new THREE.Mesh(new THREE.BoxGeometry(23, 0.25, 11), new THREE.MeshStandardMaterial({ color: cute() ? 0xa7d8c8 : 0x172d43, roughness: cute() ? 0.7 : 0.9 }))
   ground.position.y = -0.35
   scene.add(ground)
@@ -44,7 +44,7 @@ function addMapBase() {
   }
 }
 
-function addRoutes() {
+const addRoutes = () => {
   props.lines.forEach((line) => {
     const points = line.stations.map((station) => world(station.x, station.y).setY(0.08))
     const routeColor = cute() ? new THREE.Color(line.color).lerp(new THREE.Color(0xffffff), 0.28) : line.color
@@ -61,7 +61,7 @@ function addRoutes() {
   })
 }
 
-function createTrainMesh(train) {
+const createTrainMesh = (train) => {
   const color = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
   const group = new THREE.Group()
   const body = new THREE.Mesh(cute() ? new THREE.CapsuleGeometry(0.14, 0.42, 5, 12) : new THREE.BoxGeometry(0.62, 0.22, 0.2), new THREE.MeshStandardMaterial({ color: train.trainType === 'EXPRESS' ? (cute() ? 0xffb84d : 0xe5a83b) : (cute() ? new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.2) : color), metalness: cute() ? 0 : 0.25, roughness: cute() ? 0.65 : 0.35 }))
@@ -87,7 +87,7 @@ function createTrainMesh(train) {
   return group
 }
 
-function syncTrains() {
+const syncTrains = () => {
   const activeIds = new Set(props.trains.map((train) => train.id))
   props.trains.forEach((train) => {
     let mesh = trainMeshes.get(train.id)
@@ -105,7 +105,7 @@ function syncTrains() {
   trainMeshes.forEach((mesh, id) => { if (!activeIds.has(id)) { scene.remove(mesh); trainMeshes.delete(id) } })
 }
 
-function animate() {
+const animate = () => {
   animationFrame = requestAnimationFrame(animate)
   trainMeshes.forEach((mesh) => {
     if (!mesh.userData.target) return
@@ -138,14 +138,14 @@ function animate() {
   renderer.render(scene, camera)
 }
 
-function resize() {
+const resize = () => {
   if (!viewport.value || !renderer) return
   camera.aspect = viewport.value.clientWidth / viewport.value.clientHeight
   camera.updateProjectionMatrix()
   renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight)
 }
 
-function pickTrain(event) {
+const pickTrain = (event) => {
   const bounds = renderer.domElement.getBoundingClientRect()
   const pointer = new THREE.Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
   raycaster.setFromCamera(pointer, camera)
@@ -156,7 +156,7 @@ function pickTrain(event) {
   if (object?.userData.train) emit('select', object.userData.train)
 }
 
-function hoverTrain(event) {
+const hoverTrain = (event) => {
   const bounds = renderer.domElement.getBoundingClientRect()
   const pointer = new THREE.Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
   raycaster.setFromCamera(pointer, camera)
@@ -170,7 +170,7 @@ function hoverTrain(event) {
   syncTrains()
 }
 
-function resetView() {
+const resetView = () => {
   controls.reset()
   camera.position.set(0, 13, 15)
   controls.target.set(0, 0, 0)

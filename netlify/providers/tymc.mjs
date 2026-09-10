@@ -1,10 +1,10 @@
 export const TYMC_INTERSTATION_URL = 'https://opendata.tycg.gov.tw/api/dataset/89f0287e-90da-4e46-a0f4-3eefd4718025/resource/4b4ea6d2-84b6-4614-b67d-9fe50084fca3/download'
 
-function splitCsv(line) {
+const splitCsv = (line) => {
   return line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map((value) => value.replace(/^\"|\"$/g, '').trim())
 }
 
-export function parseInterstationCsv(csv) {
+export const parseInterstationCsv = (csv) => {
   const rows = csv.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean).map(splitCsv)
   if (rows.length < 2) return []
   const headers = rows[0]
@@ -18,7 +18,7 @@ export function parseInterstationCsv(csv) {
   return rows.slice(1).map((row) => ({ routeCode: row[route], vehicleType: row[type], sequence: row[serial], fromStation: row[from], toStation: row[to], seconds: Number(row[seconds]) })).filter((row) => row.fromStation && row.toStation && Number.isFinite(row.seconds) && row.seconds > 0)
 }
 
-export async function fetchTYMCInterstation() {
+export const fetchTYMCInterstation = async () => {
   const response = await fetch(TYMC_INTERSTATION_URL)
   if (!response.ok) throw new Error(`TYMC open data ${response.status}`)
   return parseInterstationCsv(await response.text())

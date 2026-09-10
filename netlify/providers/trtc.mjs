@@ -2,7 +2,7 @@
  * TRTC member API boundary. The official endpoint and response fields are
  * intentionally supplied by configuration/mapping, never guessed here.
  */
-export function createTRTCClient({ baseUrl = process.env.TRTC_API_BASE, apiKey = process.env.TRTC_API_KEY, fetcher = fetch } = {}) {
+export const createTRTCClient = ({ baseUrl = process.env.TRTC_API_BASE, apiKey = process.env.TRTC_API_KEY, fetcher = fetch } = {}) => {
   return {
     enabled: Boolean(baseUrl && apiKey),
     async fetchRaw(path, options = {}) {
@@ -14,7 +14,7 @@ export function createTRTCClient({ baseUrl = process.env.TRTC_API_BASE, apiKey =
   }
 }
 
-export function mapTRTCTrainStates(payload, mapping) {
+export const mapTRTCTrainStates = (payload, mapping) => {
   if (!mapping || typeof mapping !== 'function') return []
   return (Array.isArray(payload) ? payload : []).map(mapping).filter(Boolean)
 }
