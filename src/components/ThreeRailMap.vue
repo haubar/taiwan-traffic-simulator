@@ -18,6 +18,15 @@ function addMapBase() {
   grid.material.transparent = true
   grid.material.opacity = 0.35
   scene.add(grid)
+  const mapPlane = new THREE.Mesh(new THREE.PlaneGeometry(23, 11), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.72 }))
+  mapPlane.rotation.x = -Math.PI / 2
+  mapPlane.position.y = -0.17
+  scene.add(mapPlane)
+  new THREE.TextureLoader().load('https://tile.openstreetmap.org/8/171/112.png', (texture) => {
+    texture.colorSpace = THREE.SRGBColorSpace
+    mapPlane.material.map = texture
+    mapPlane.material.needsUpdate = true
+  }, undefined, () => { mapPlane.material.opacity = 0 })
   for (let i = 0; i < 18; i += 1) {
     const block = new THREE.Mesh(new THREE.BoxGeometry(0.7 + (i % 4) * 0.35, 0.3 + (i % 4) * 0.18, 0.45 + (i % 3) * 0.25), new THREE.MeshStandardMaterial({ color: i % 2 ? 0x274761 : 0x315975 }))
     block.position.set(-10 + (i * 3.1) % 20, block.geometry.parameters.height / 2 - 0.2, -4.3 + (i * 1.7) % 8)
@@ -117,7 +126,7 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
 </script>
 
 <template>
-  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><small>拖曳平移／旋轉 · 滾輪縮放 · WebGL 車輛平滑行駛</small></div><div ref="viewport" class="three-viewport"></div></div>
+  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><small>拖曳平移／旋轉 · 滾輪縮放 · WebGL 車輛平滑行駛</small></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
 </template>
 
 <style scoped>
@@ -126,5 +135,6 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
 .map-caption small { color: #7790ad; font-weight: 400; }
 .three-viewport { height: 520px; cursor: grab; }
 .three-viewport:active { cursor: grabbing; }
+.map-attribution { padding: 5px 10px 8px; color: #7891aa; font-size: 10px; }
 @media (max-width: 700px) { .three-viewport { height: 400px; } }
 </style>
