@@ -38,7 +38,7 @@ npm run dev
 npm run build
 ```
 
-需要 Node.js 20 或更新版本。Function 不可用時，Vite 畫面仍保留 demo fallback。
+需要 Node.js 18 或更新版本。Function 不可用時，Vite 畫面仍保留 demo fallback。
 
 ## Environment variables
 
