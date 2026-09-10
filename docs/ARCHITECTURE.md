@@ -9,7 +9,7 @@ App.vue → composables → services → providers → data / Netlify Functions
 ```
 
 - `App.vue`：組合畫面狀態與元件，不直接抓外部資料。
-- `components/`：負責平面圖、3D renderer、時間軸與互動展示，不產生班表。
+- `components/`：負責平面圖、情境行進、3D renderer、時間軸與互動展示，不產生班表。
 - `composables/`：負責模擬時間、跨午夜、站間 interpolation 與反應式狀態。
 - `services/`：建立 provider、載入資料與組合跨來源流程。
 - `providers/`：將不同營運者資料轉成共同介面；沒有正式來源時只能使用明確標示的 fallback。
@@ -43,7 +43,7 @@ export const formatClock = (seconds) => String(seconds)
 3. TYMC provider 呼叫 Netlify Function，Function server-side 取得官方 CSV 並快取。
 4. Service 將官方站間資料套用至 schedule，失敗時保留 fallback。
 5. `useTrainPosition` 依模擬時間輸出 TrainState 與畫面座標。
-6. 平面圖與 3D 圖只消費標準化狀態。
+6. 平面圖、情境行進與 3D 圖只消費標準化狀態；情境行進額外消費站點經緯度與路線資料決定場景內容。
 
 ## 新增路線流程
 

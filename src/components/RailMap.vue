@@ -1,12 +1,17 @@
 <script setup>
+import { computed, ref } from 'vue'
+
 defineProps({ lines: Array, trains: Array, selectedTrain: Object })
 const emit = defineEmits(['select'])
+const zoom = ref(1)
+const viewBox = computed(() => { const width=1240/zoom.value; const height=520/zoom.value; return `${(1240-width)/2} ${(520-height)/2} ${width} ${height}` })
+const setZoom = (value) => { zoom.value=Math.max(1,Math.min(2.8,value)) }
 </script>
 
 <template>
   <div class="map-wrap">
-    <div class="map-caption"><span>數位分身地圖</span><small>車輛位置為依資料來源推算</small></div>
-    <svg viewBox="0 0 1240 520" class="rail-svg" role="img" aria-label="北部軌道交通數位分身地圖">
+    <div class="map-caption"><span>數位分身地圖</span><small>車輛位置為依資料來源推算</small><div class="map-zoom"><button @click="setZoom(zoom+.3)">＋</button><button @click="setZoom(zoom-.3)">－</button><button @click="setZoom(1)">全線</button></div></div>
+    <svg :viewBox="viewBox" class="rail-svg" role="img" aria-label="北部軌道交通數位分身地圖">
       <defs>
         <linearGradient id="map-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#142943"/><stop offset="1" stop-color="#0b1829"/></linearGradient>
         <pattern id="map-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="#7192b6" stroke-opacity=".08"/></pattern>
@@ -33,6 +38,7 @@ const emit = defineEmits(['select'])
 
 <style scoped>
 .map-caption { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 5px 10px; color: #d7e5f5; font-weight: 700; }
+.map-zoom{display:flex;gap:5px;margin-left:auto}.map-zoom button{border:1px solid #38516a;background:#172338;color:#d7e5f5;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px}
 .map-caption small { color: #7790ad; font-weight: 400; }
 .map-road { fill: none; stroke: #8eb3d1; stroke-opacity: .12; stroke-width: 18; }
 .map-road.secondary { stroke-width: 10; stroke-dasharray: 18 14; }

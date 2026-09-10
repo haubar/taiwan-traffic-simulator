@@ -11,7 +11,7 @@ export const useTrainPosition = (lines,schedules,simSec) => {
       const a=line?.stations.find(s=>s.id===seg.fromStation), b=line?.stations.find(s=>s.id===seg.toStation)
       if(!a||!b) continue
       const p=Math.max(0,Math.min(1,(Math.min(simSec.value, seg.arrivalSec)-seg.departureSec)/(seg.arrivalSec-seg.departureSec)))
-      grouped.set(key,{...seg,progress:p,status:simSec.value>seg.arrivalSec?'DWELLING':'RUNNING',x:a.x+(b.x-a.x)*p,y:a.y+(b.y-a.y)*p,fromName:a.name,toName:b.name,departureTime:formatClock(seg.departureSec),arrivalTime:formatClock(seg.arrivalSec),updatedAt:new Date().toISOString()})
+      grouped.set(key,{...seg,progress:p,status:simSec.value>seg.arrivalSec?'DWELLING':'RUNNING',x:a.x+(b.x-a.x)*p,y:a.y+(b.y-a.y)*p,lat:a.lat+(b.lat-a.lat)*p,lon:a.lon+(b.lon-a.lon)*p,fromName:a.name,toName:b.name,departureTime:formatClock(seg.departureSec),arrivalTime:formatClock(seg.arrivalSec),updatedAt:new Date().toISOString()})
     }
     return [...grouped.values()]
   })
