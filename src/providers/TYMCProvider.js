@@ -13,6 +13,24 @@ export const createTYMCProvider = (lines, allowDemo = false) => {
     })
   }
 
+  const buildOfficialSchedules = (payload) => {
+    const line = lines.find((item) => item.id === 'A')
+    const departures = payload?.departures?.departures ?? []
+    return departures.flatMap((departure, index) => {
+      const fullSequence = departure.originStation === 'A1' ? line.stations : [...line.stations].reverse()
+      const sequence = departure.trainType === 'EXPRESS' && departure.stops.length > 1
+        ? departure.stops.map((id) => line.stations.find((station) => station.id === id)).filter(Boolean)
+        : fullSequence
+      return [-1, 0, 1].flatMap((dayOffset) => sequence.slice(0, -1).map((from, segmentIndex) => {
+        const to = sequence[segmentIndex + 1]
+        const runtime = payload.interstationTimes.find((row) => row.fromStation === from.id && row.toStation === to.id && ((departure.trainType === 'EXPRESS') === String(row.vehicleType).includes('直達')))?.seconds
+        if (!runtime) return null
+        const departureSec = departure.departureSec + dayOffset * 86400 + segmentIndex * runtime
+        return { id: `TYMC-official-${dayOffset}-${index}-${segmentIndex}`, operator: 'TYMC', lineId: 'A', trainType: departure.trainType, direction: departure.originStation === 'A1' ? 0 : 1, fromStation: from.id, toStation: to.id, departureSec, arrivalSec: departureSec + runtime, dwellUntilSec: departureSec + runtime, source: 'SCHEDULED', trainId: `TYMC-${departure.originStation}-${String(index + 1).padStart(3, '0')}` }
+      }).filter(Boolean))
+    })
+  }
+
   const loadOfficialData = async (endpoint = '/.netlify/functions/trains?operator=TYMC') => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
@@ -32,5 +50,5 @@ export const createTYMCProvider = (lines, allowDemo = false) => {
     return null
   }
 
-  return { getSchedules: () => allowDemo ? fallback.getSchedules() : [], applyInterstationTimes, loadOfficialData, get source() { return source } }
+  return { getSchedules: () => allowDemo ? fallback.getSchedules() : [], buildOfficialSchedules, applyInterstationTimes, loadOfficialData, get source() { return source } }
 }

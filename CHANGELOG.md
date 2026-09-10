@@ -11,6 +11,12 @@
 - 新增 `VITE_ENABLE_DEMO_DATA=false`；只有本地明確設定為 `true` 才能測試 demo 動畫。
 - 更新 README、架構與功能文件，列出各路線目前已驗證資料與尚待官方班表的範圍。
 
+### 桃捷官方班表接入
+
+- Netlify Function server-side 讀取桃捷官方 A1、A22 車站時刻表頁面。
+- 解析官方普通車／直達車發車時間與直達車停靠站，並與官方站間運行秒數組合。
+- 實測官方頁面取得 216 筆 departure records；來源標示為 `SCHEDULED`，不是 LIVE。
+
 ### 情境行進模擬
 
 - 新增 `ScenarioScene.vue` 2D 沿線情境視圖。

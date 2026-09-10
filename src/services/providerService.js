@@ -14,7 +14,5 @@ export const getInitialSchedules = (providers) => {
 export const loadOfficialSchedules = async (providers, schedules) => {
   const payload = await providers.tymc.loadOfficialData()
   if (!payload) return schedules
-  return schedules.map((schedule) => schedule.operator === 'TYMC'
-    ? providers.tymc.applyInterstationTimes([schedule], payload.interstationTimes)[0]
-    : schedule)
+  return [...schedules.filter((schedule) => schedule.operator !== 'TYMC'), ...providers.tymc.buildOfficialSchedules(payload)]
 }

@@ -23,3 +23,33 @@ export const fetchTYMCInterstation = async () => {
   if (!response.ok) throw new Error(`TYMC open data ${response.status}`)
   return parseInterstationCsv(await response.text())
 }
+
+const stripMarkup = (html) => html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+export const parseTYMCDepartures = (html, originStation) => {
+  const departures = []
+  const cells = [...html.matchAll(/<td[\s\S]*?<\/td>/gi)].map((match) => match[0])
+  for (const cell of cells) {
+    const text = stripMarkup(cell).replace(/\s+/g, ' ')
+    const match = text.match(/(\d{1,2})點\s*(\d{1,2})/)
+    if (!match) continue
+    const hour = Number(match[1]); const minute = Number(match[2])
+    if (hour > 23 || minute > 59) continue
+    const description = text
+    const trainType = description.includes('直達車') ? 'EXPRESS' : description.includes('普通車') ? 'LOCAL' : null
+    if (!trainType) continue
+    const stops = [...description.matchAll(/A\d{1,2}a?/g)].map((item) => item[0])
+    departures.push({ originStation, departureSec: hour * 3600 + minute * 60, trainType, stops })
+  }
+  return [...new Map(departures.map((item) => [`${item.originStation}-${item.departureSec}-${item.trainType}-${item.stops.join(',')}`, item])).values()]
+}
+
+export const fetchTYMCDepartures = async () => {
+  const sources = [['A1', 'https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable.php/timetable-A1'], ['A22', 'https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable-A22']]
+  const departures = (await Promise.all(sources.map(async ([originStation, url]) => {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`TYMC timetable ${response.status}`)
+    return parseTYMCDepartures(await response.text(), originStation)
+  }))).flat()
+  if (!departures.length) throw new Error('TYMC timetable contains no departures')
+  return { departures, fetchedAt: new Date().toISOString(), sources: sources.map((source) => source[1]) }
+}

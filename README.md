@@ -22,11 +22,11 @@ Vue UI → providerService → TRTCProvider / TYMCProvider → Netlify Function 
 
 `src/providers/types.js` 定義統一的 `TrainState`：`id`、`operator`、`lineId`、`trainType`、`direction`、`fromStation`、`toStation`、`departureTime`、`arrivalTime`、`progress`、`source`、`updatedAt`。UI 只接收 provider 資料，不直接讀政府 API。
 
-`TRTCProvider` 保留北捷會員 API adapter，不猜測官方會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方站間運行秒數；`NTMCProvider` 等待官方班次資料接入。Production 預設為嚴格官方資料模式，沒有正式班次就不產生列車；只有設定 `VITE_ENABLE_DEMO_DATA=true` 才會開啟開發用 demo。完整功能與變更紀錄請見 [`docs/FEATURES.md`](docs/FEATURES.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 與 [`CHANGELOG.md`](CHANGELOG.md)。
+`TRTCProvider` 保留北捷公開時刻表與會員 API adapter，不猜測會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方 A1／A22 時刻表與站間運行秒數；`NTMCProvider` 等待官方班次資料接入。Production 預設為嚴格官方資料模式，沒有正式班次就不產生列車；只有設定 `VITE_ENABLE_DEMO_DATA=true` 才會開啟開發用 demo。完整功能與變更紀錄請見 [`docs/FEATURES.md`](docs/FEATURES.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 與 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## Data flow
 
-Vue 啟動時由 provider 載入官方資料；`TYMCProvider` 呼叫 `/.netlify/functions/trains?operator=TYMC`。Netlify Function server-side 抓取並快取官方 CSV 15 分鐘，前端不直接連政府資料站。只有取得官方班次與站間資料後，位置 composable 才會依指定模擬時間做站間 interpolation。
+Vue 啟動時由 provider 載入官方資料；`TYMCProvider` 呼叫 `/.netlify/functions/trains?operator=TYMC`。Netlify Function server-side 抓取並快取桃捷官方 HTML 時刻表與 CSV 15 分鐘，前端不直接連政府資料站。只有取得官方班次與站間資料後，位置 composable 才會依指定模擬時間做站間 interpolation。
 
 ## TrainState 與資料可信度
 
@@ -64,7 +64,7 @@ Netlify Functions 預留 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 s
 ## Roadmap
 
 1. 驗證北捷會員 API 欄位，完成 LIVE／ESTIMATED adapter。
-2. 以桃捷官方完整班表取代 demo departure seeds，支援日期與服務異動。
+2. 北捷公開時刻表 parser：依官方 PDF／站頁的平日、週六、國定假日欄位載入完整班表。
 3. 取得四條北捷新增路線的官方站間運行資料與完整班表。
 4. 完成四條新增北捷路線的 LIVE／ESTIMATED adapter。
 5. （目前範圍不包含台鐵、高鐵、公車與道路交通。）
