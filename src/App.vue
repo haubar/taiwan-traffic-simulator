@@ -19,6 +19,7 @@ const journeyMode=ref('overview')
 const visualStyle=ref('tech')
 const scheduleRows = computed(() => activeTrains.value.slice().sort((a,b) => a.arrivalSec - b.arrivalSec).slice(0, 14))
 const selectTrain = (train) => { selected.value=train; viewMode.value='scene' }
+const demoEnabled = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
 onMounted(async () => { schedules.value = await loadOfficialSchedules(providers, schedules.value) })
 </script>
 <template>
@@ -37,6 +38,6 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
     <span>{{selected.direction===0?'往終點':'往起點'}} · {{selected.fromName}} → {{selected.toName}}</span><span>{{selected.status==='DWELLING'?'停靠中':'行駛中'}} · 進度 {{Math.round(selected.progress*100)}}%</span>
     <span>預計抵達 {{formatSimulationTime(selected.arrivalSec)}}</span><span class="source" :class="selected.source.toLowerCase()">{{selected.source}}</span><small>更新 {{selected.updatedAt}}</small>
   </section>
-  <section class="legend"><span>資料狀態：LIVE 即時 · ESTIMATED 推估 · SCHEDULED 時刻表</span><span>目前為 SCHEDULED fallback；不代表 GPS 即時位置</span></section>
+  <section class="legend"><span>資料狀態：LIVE 即時 · ESTIMATED 推估 · SCHEDULED 官方時刻表</span><span>{{demoEnabled?'開發展示模式：含 DEMO fallback':'嚴格官方資料模式：未取得官方班次時不顯示列車'}}</span></section>
 </main>
 </template>

@@ -4,6 +4,13 @@
 
 ## 2026-09-10
 
+### 真實資料嚴格模式
+
+- Production 預設關閉 demo schedule，不再把程式生成班次標示成 SCHEDULED 官方資料。
+- 沒有官方班次或即時資料時，provider 回傳空集合並由 UI 顯示空資料狀態。
+- 新增 `VITE_ENABLE_DEMO_DATA=false`；只有本地明確設定為 `true` 才能測試 demo 動畫。
+- 更新 README、架構與功能文件，列出各路線目前已驗證資料與尚待官方班表的範圍。
+
 ### 情境行進模擬
 
 - 新增 `ScenarioScene.vue` 2D 沿線情境視圖。

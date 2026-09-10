@@ -1,6 +1,6 @@
 import { createScheduledProvider } from './scheduledProvider'
 
-export const createTYMCProvider = (lines) => {
+export const createTYMCProvider = (lines, allowDemo = false) => {
   const fallback = createScheduledProvider('TYMC', lines)
   let source = 'SCHEDULED'
   const applyInterstationTimes = (schedules, rows) => {
@@ -25,12 +25,12 @@ export const createTYMCProvider = (lines) => {
         }
         throw new Error('TYMC provider schema validation failed')
       } catch (error) {
-        if (attempt === 2) console.warn('[TYMCProvider] official data unavailable; using demo fallback', error)
+        if (attempt === 2) console.warn('[TYMCProvider] official data unavailable; strict mode keeps official schedule empty', error)
         else await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
       }
     }
     return null
   }
 
-  return { getSchedules: () => fallback.getSchedules(), applyInterstationTimes, loadOfficialData, get source() { return source } }
+  return { getSchedules: () => allowDemo ? fallback.getSchedules() : [], applyInterstationTimes, loadOfficialData, get source() { return source } }
 }

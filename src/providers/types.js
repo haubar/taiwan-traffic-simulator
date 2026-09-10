@@ -1,7 +1,7 @@
 /**
  * @typedef {'TRTC'|'TYMC'|'NTMC'} Operator
  * @typedef {'LOCAL'|'EXPRESS'} TrainType
- * @typedef {'LIVE'|'ESTIMATED'|'SCHEDULED'} SourceType
+ * @typedef {'LIVE'|'ESTIMATED'|'SCHEDULED'|'DEMO'} SourceType
  * @typedef {Object} TrainState
  * @property {string} id
  * @property {Operator} operator
@@ -23,5 +23,6 @@
 export const SOURCE_LABELS = {
   LIVE: 'LIVE 即時',
   ESTIMATED: 'ESTIMATED 推估',
-  SCHEDULED: 'SCHEDULED 時刻表'
+  SCHEDULED: 'SCHEDULED 時刻表',
+  DEMO: 'DEMO 開發資料'
 }

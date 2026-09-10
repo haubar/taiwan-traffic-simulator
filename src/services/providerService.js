@@ -3,7 +3,8 @@ import { createTYMCProvider } from '../providers/TYMCProvider'
 import { createNTMCProvider } from '../providers/NTMCProvider'
 
 export const createTransitProviders = (lines) => {
-  return { trtc: createTRTCProvider(lines), tymc: createTYMCProvider(lines), ntmc: createNTMCProvider(lines) }
+  const allowDemo = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
+  return { trtc: createTRTCProvider(lines, import.meta.env, allowDemo), tymc: createTYMCProvider(lines, allowDemo), ntmc: createNTMCProvider(lines, allowDemo) }
 }
 
 export const getInitialSchedules = (providers) => {

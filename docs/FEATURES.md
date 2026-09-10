@@ -6,13 +6,13 @@
 
 | Operator | 路線 | 站點 | 目前資料狀態 |
 | --- | --- | --- | --- |
-| TRTC | 板南線 BL | BL01–BL23 | SCHEDULED fallback |
-| TRTC | 淡水信義線 R | R02–R28 | SCHEDULED fallback |
-| TRTC | 松山新店線 G | G01–G19 | SCHEDULED fallback |
-| TRTC | 中和新蘆線 O | O01–O21、O50–O54 | SCHEDULED fallback |
-| TRTC | 文湖線 BR | BR01–BR24 | 班距式 SCHEDULED fallback |
-| TYMC | 桃園機場捷運 A | A1–A22 | 官方站間秒數＋SCHEDULED fallback |
-| NTMC | 新北環狀線 Y | Y07–Y20 | SCHEDULED fallback |
+| TRTC | 板南線 BL | BL01–BL23 | 路線資料／列車班次待官方資料 |
+| TRTC | 淡水信義線 R | R02–R28 | 路線資料／列車班次待官方資料 |
+| TRTC | 松山新店線 G | G01–G19 | 路線資料／列車班次待官方資料 |
+| TRTC | 中和新蘆線 O | O01–O21、O50–O54 | 路線資料／列車班次待官方資料 |
+| TRTC | 文湖線 BR | BR01–BR24 | 路線資料／列車班次待官方資料 |
+| TYMC | 桃園機場捷運 A | A1–A22 | 官方站間秒數／完整班次待官方資料 |
+| NTMC | 新北環狀線 Y | Y07–Y20 | 路線資料／列車班次待官方資料 |
 
 台鐵、高鐵、公車、道路交通與輕軌不在目前範圍內。
 
@@ -57,7 +57,7 @@
 - 點擊平面圖、3D 或行車表中的列車，會自動切換到該車的情境行進畫面。
 - 場景標示實際站名、目前站間、經緯度與資料可信度。
 
-場景不是實景照片或 GPS 影像；列車仍依 `SCHEDULED`／`ESTIMATED`／`LIVE` 狀態顯示可信度。
+場景不是實景照片或 GPS 影像。Production 預設不顯示 demo 列車；若需測試動畫，必須明確設定 `VITE_ENABLE_DEMO_DATA=true`，且畫面會標示開發展示模式。
 
 ## 可愛風
 
