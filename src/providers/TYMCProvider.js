@@ -1,4 +1,4 @@
-import { createScheduledProvider } from './scheduledProvider'
+import { createScheduledProvider } from './scheduledProvider.js'
 
 export const createTYMCProvider = (lines, allowDemo = false) => {
   const fallback = createScheduledProvider('TYMC', lines)
@@ -7,8 +7,8 @@ export const createTYMCProvider = (lines, allowDemo = false) => {
     const byPair = new Map(rows.map((row) => [`${row.fromStation}->${row.toStation}->${row.vehicleType}`, row.seconds]))
     return schedules.map((schedule) => {
       const pair = `${schedule.fromStation}->${schedule.toStation}`
-      const typed = rows.find((row) => `${row.fromStation}->${row.toStation}` === pair && (schedule.trainType === 'EXPRESS') === String(row.vehicleType).includes('直達'))
-      const seconds = typed?.seconds || byPair.get(`${pair}->${schedule.trainType === 'EXPRESS' ? '直達車' : '普通車'}`)
+      const typed = rows.find((row) => `${row.fromStation}->${row.toStation}` === pair && row.vehicleType === schedule.trainType)
+      const seconds = typed?.seconds || byPair.get(`${pair}->${schedule.trainType}`)
       return seconds ? { ...schedule, arrivalSec: schedule.departureSec + seconds, dwellUntilSec: schedule.departureSec + seconds + 18 } : schedule
     })
   }
@@ -23,7 +23,7 @@ export const createTYMCProvider = (lines, allowDemo = false) => {
         : fullSequence
       return [-1, 0, 1].flatMap((dayOffset) => sequence.slice(0, -1).map((from, segmentIndex) => {
         const to = sequence[segmentIndex + 1]
-        const runtime = payload.interstationTimes.find((row) => row.fromStation === from.id && row.toStation === to.id && ((departure.trainType === 'EXPRESS') === String(row.vehicleType).includes('直達')))?.seconds
+        const runtime = payload.interstationTimes.find((row) => row.fromStation === from.id && row.toStation === to.id && row.vehicleType === departure.trainType)?.seconds
         if (!runtime) return null
         const departureSec = departure.departureSec + dayOffset * 86400 + segmentIndex * runtime
         return { id: `TYMC-official-${dayOffset}-${index}-${segmentIndex}`, operator: 'TYMC', lineId: 'A', trainType: departure.trainType, direction: departure.originStation === 'A1' ? 0 : 1, fromStation: from.id, toStation: to.id, departureSec, arrivalSec: departureSec + runtime, dwellUntilSec: departureSec + runtime, source: 'SCHEDULED', trainId: `TYMC-${departure.originStation}-${String(index + 1).padStart(3, '0')}` }
