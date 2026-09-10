@@ -76,7 +76,12 @@ function syncTrains() {
     let mesh = trainMeshes.get(train.id)
     if (!mesh) { mesh = createTrainMesh(train); scene.add(mesh); trainMeshes.set(train.id, mesh) }
     mesh.userData.target = world(train.x, train.y)
-    mesh.userData.direction = train.direction
+    const line = props.lines.find((candidate) => candidate.id === train.lineId)
+    const from = line?.stations.find((station) => station.id === train.fromStation)
+    const to = line?.stations.find((station) => station.id === train.toStation)
+    const fromWorld = from ? world(from.x, from.y) : mesh.userData.target
+    const toWorld = to ? world(to.x, to.y) : mesh.userData.target.clone().add(new THREE.Vector3(1, 0, 0))
+    mesh.userData.heading = Math.atan2(toWorld.z - fromWorld.z, toWorld.x - fromWorld.x)
     mesh.userData.train = train
     mesh.scale.setScalar(props.selectedTrain?.id === train.id ? 1.18 : hoveredTrainId === train.id ? 1.1 : 1)
   })
@@ -88,21 +93,21 @@ function animate() {
   trainMeshes.forEach((mesh) => {
     if (!mesh.userData.target) return
     mesh.position.lerp(mesh.userData.target, 0.16)
-    mesh.rotation.y = mesh.userData.direction === 1 ? Math.PI : 0
+    mesh.rotation.y = mesh.userData.heading || 0
     mesh.position.y = 0.05 + Math.sin(performance.now() / 170 + mesh.position.x) * 0.015
   })
   const focus = trainMeshes.get(props.selectedTrain?.id) || trainMeshes.get(props.trains[0]?.id)
   if (props.journeyMode && focus) {
-    const direction = focus.userData.direction === 1 ? -1 : 1
+    const direction = new THREE.Vector3(Math.cos(focus.userData.heading || 0), 0, Math.sin(focus.userData.heading || 0))
     if (props.journeyMode === 'cab') {
-      const cabPosition = new THREE.Vector3(focus.position.x + direction * 0.12, 0.58, focus.position.z)
-      const viewAhead = new THREE.Vector3(focus.position.x + direction * 3, 0.48, focus.position.z)
+      const cabPosition = focus.position.clone().addScaledVector(direction, 0.12).setY(0.58)
+      const viewAhead = focus.position.clone().addScaledVector(direction, 3).setY(0.48)
       camera.position.lerp(cabPosition, 0.18)
       controls.target.lerp(viewAhead, 0.18)
       controls.minDistance = 0.2
       controls.maxDistance = 3
     } else {
-      const desiredCamera = new THREE.Vector3(focus.position.x - direction * 2.8, 1.55, focus.position.z + 1.65)
+      const desiredCamera = focus.position.clone().addScaledVector(direction, -2.8).add(new THREE.Vector3(0, 1.55, 0))
       camera.position.lerp(desiredCamera, 0.075)
       controls.target.lerp(new THREE.Vector3(focus.position.x, 0.3, focus.position.z), 0.12)
       controls.minDistance = 1.2
