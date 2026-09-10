@@ -53,7 +53,7 @@ npm run build
 
 ## Environment variables
 
-Netlify Functions 使用 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 server-side。Vite adapter 檢查用變數為 `VITE_TRTC_API_BASE`、`VITE_TRTC_API_KEY`。設定變數不會自動宣稱 LIVE，仍需完成官方欄位 mapping 與認證流程。
+Netlify Functions 預留 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 server-side。北捷 adapter 不會自行猜測認證標頭，必須在取得官方會員 API 文件後提供明確的 request-header mapping。Vite adapter 檢查用變數為 `VITE_TRTC_API_BASE`、`VITE_TRTC_API_KEY`。設定變數不會自動宣稱 LIVE，仍需完成官方欄位 mapping 與認證流程。
 
 ## Netlify deployment
 
