@@ -1,0 +1,1 @@
+export default async () => new Response(JSON.stringify({ok:true,mode:'demo',message:'Live providers are intentionally separated from the MVP UI. Configure TRTC credentials before enabling live mode.'}),{headers:{'content-type':'application/json; charset=utf-8'}})
