@@ -1,4 +1,6 @@
-export const TYMC_INTERSTATION_URL = 'https://opendata.tycg.gov.tw/api/dataset/89f0287e-90da-4e46-a0f4-3eefd4718025/resource/4b4ea6d2-84b6-4614-b67d-9fe50084fca3/download'
+import sources from '../data/tymcSources.json' with { type: 'json' }
+
+export const TYMC_INTERSTATION_URL = sources.interstation
 
 const splitCsv = (line) => {
   return line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map((value) => value.replace(/^\"|\"$/g, '').trim())
@@ -44,12 +46,11 @@ export const parseTYMCDepartures = (html, originStation) => {
 }
 
 export const fetchTYMCDepartures = async () => {
-  const sources = [['A1', 'https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable.php/timetable-A1'], ['A22', 'https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable-A22']]
-  const departures = (await Promise.all(sources.map(async ([originStation, url]) => {
+  const departures = (await Promise.all(sources.timetables.map(async ({ originStation, url }) => {
     const response = await fetch(url)
     if (!response.ok) throw new Error(`TYMC timetable ${response.status}`)
     return parseTYMCDepartures(await response.text(), originStation)
   }))).flat()
   if (!departures.length) throw new Error('TYMC timetable contains no departures')
-  return { departures, fetchedAt: new Date().toISOString(), sources: sources.map((source) => source[1]) }
+  return { departures, fetchedAt: new Date().toISOString(), sources: sources.timetables.map((source) => source.url) }
 }

@@ -1,0 +1,14 @@
+{
+  "days": [-1, 0, 1],
+  "routes": [
+    { "lineId": "BL", "operator": "TRTC", "start": 21000, "headway": 240, "runtime": 125, "count": 115, "trainType": "LOCAL" },
+    { "lineId": "A", "operator": "TYMC", "start": 19800, "headway": 600, "runtime": 165, "count": 48, "trainType": "LOCAL" },
+    { "lineId": "A", "operator": "TYMC", "start": 21600, "headway": 900, "runtime": 330, "count": 32, "trainType": "EXPRESS", "stoppingIndexes": [0, 2, 7, 11, 12, 17, 21] },
+    { "lineId": "Y", "operator": "NTMC", "start": 21600, "headway": 480, "runtime": 115, "count": 70, "trainType": "LOCAL" },
+    { "lineId": "R", "operator": "TRTC", "start": 20700, "headway": 300, "runtime": 115, "count": 110, "trainType": "LOCAL" },
+    { "lineId": "G", "operator": "TRTC", "start": 20700, "headway": 300, "runtime": 105, "count": 110, "trainType": "LOCAL" },
+    { "lineId": "O", "operator": "TRTC", "start": 21000, "headway": 300, "runtime": 100, "count": 110, "trainType": "LOCAL" },
+    { "lineId": "OL", "operator": "TRTC", "start": 21600, "headway": 420, "runtime": 110, "count": 80, "trainType": "LOCAL" },
+    { "lineId": "BR", "operator": "TRTC", "start": 21000, "headway": 240, "runtime": 90, "count": 135, "trainType": "LOCAL" }
+  ]
+}

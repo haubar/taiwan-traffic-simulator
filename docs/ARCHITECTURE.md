@@ -14,8 +14,9 @@ App.vue → composables → services → providers → data / Netlify Functions
 - `services/`：建立 provider、載入資料與組合跨來源流程。
 - `providers/`：將不同營運者資料轉成共同介面；Production 沒有正式來源時回傳空資料，不產生假班次。
 - `data/`：保存路線、站點、地理投影與明確隔離的 demo schedule；demo 只能由 `VITE_ENABLE_DEMO_DATA=true` 開啟。
-- `netlify/providers/`：server-side 官方資料 parser、schema validation、重試與 credential adapter。
+- `netlify/providers/`：server-side 官方資料 parser、schema validation、重試與 credential adapter；來源網址放在 `netlify/data/*.json`。
 - `netlify/providers/trtc.mjs` 不預設任何認證標頭；待取得北捷會員 API 正式文件後，才由 adapter 注入官方要求的 request headers。
+- 班次參數與來源設定使用 JSON 資料檔；JS／MJS 只負責讀取、驗證、解析與轉換。
 - `netlify/functions/`：只對前端提供受控 endpoint，避免前端直接讀政府 API。
 
 ## JavaScript 規則

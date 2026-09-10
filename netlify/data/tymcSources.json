@@ -1,0 +1,7 @@
+{
+  "interstation": "https://opendata.tycg.gov.tw/api/dataset/89f0287e-90da-4e46-a0f4-3eefd4718025/resource/4b4ea6d2-84b6-4614-b67d-9fe50084fca3/download",
+  "timetables": [
+    { "originStation": "A1", "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable.php/timetable-A1" },
+    { "originStation": "A22", "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable-A22" }
+  ]
+}
