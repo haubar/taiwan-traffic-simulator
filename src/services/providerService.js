@@ -1,6 +1,6 @@
-import { createTRTCProvider } from '../providers/TRTCProvider'
-import { createTYMCProvider } from '../providers/TYMCProvider'
-import { createNTMCProvider } from '../providers/NTMCProvider'
+import { createTRTCProvider } from '../providers/TRTCProvider.js'
+import { createTYMCProvider } from '../providers/TYMCProvider.js'
+import { createNTMCProvider } from '../providers/NTMCProvider.js'
 
 export const createTransitProviders = (lines) => {
   const allowDemo = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
