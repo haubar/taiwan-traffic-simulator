@@ -12,7 +12,7 @@
 
 3D 視圖另提供北部區域的 [OpenStreetMap](https://www.openstreetmap.org/copyright) 地圖圖磚作為地理參考底圖，並在畫面標示 attribution。底圖提供城市道路與區域脈絡，列車位置仍由 provider 的 SCHEDULED／ESTIMATED／LIVE 狀態決定，不會因為有地圖底圖就宣稱為即時 GPS。
 
-車站地理校準使用公開 OSM railway station 節點資料，集中在 `src/data/geography.js`，並以 Web Mercator 近似投影到畫布；它是地理參考層，不是列車定位資料。少數未帶專案站碼的站點使用相鄰站插值，待接入官方車站座標資料後可直接替換。
+車站地理校準使用公開 OSM railway station 節點資料，集中在 `src/data/geography.json`，由 `src/services/geographyProjection.js` 套用 Web Mercator 近似投影到畫布；它是地理參考層，不是列車定位資料。少數未帶專案站碼的站點使用相鄰站插值，待接入官方車站座標資料後可直接替換。路線與站點順序則保存於 `src/data/network.json`，避免把資料內容與程式邏輯混在一起。
 
 ## Architecture
 

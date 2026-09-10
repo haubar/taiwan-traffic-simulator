@@ -82,8 +82,8 @@
 
 相關程式位置：
 
-- 路線：`src/data/network.js`
-- 地理座標：`src/data/geography.js`
+- 路線：`src/data/network.json`（由 `src/services/networkLoader.js` 載入）
+- 地理座標：`src/data/geography.json`（由 `src/services/geographyProjection.js` 載入）
 - 位置計算：`src/composables/useTrainPosition.js`
 - 3D renderer：`src/components/ThreeRailMap.vue`
 - provider：`src/providers/`

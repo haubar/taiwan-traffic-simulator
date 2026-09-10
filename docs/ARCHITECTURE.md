@@ -49,9 +49,9 @@ export const formatClock = (seconds) => String(seconds)
 
 ## 新增路線流程
 
-1. 在 `src/data/network.js` 加入路線與站點順序。
-2. 在 `src/data/geography.js` 加入公開地理座標或明確註記 fallback／插值。
-3. 在 `src/data/demoSchedules.js` 加入 demo fallback，來源保持 `SCHEDULED`。
+1. 在 `src/data/network.json` 加入路線與站點順序。
+2. 在 `src/data/geography.json` 加入公開地理座標或明確註記 fallback／插值。
+3. 在 `src/data/demoScheduleConfig.json` 加入 demo fallback 設定，來源保持 `SCHEDULED`；建構邏輯位於 `src/services/demoScheduleBuilder.js`。
 4. 若有正式來源，在 `netlify/providers/` 新增 parser 與 schema validation。
 5. 由 `providerService` 組合 provider，不在 component 內判斷營運者。
 6. 執行 `npm run build`、資料 smoke test 與 `git diff --check`。
