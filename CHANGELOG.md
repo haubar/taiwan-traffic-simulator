@@ -9,6 +9,7 @@
 - 新增 `OpenDataVipProvider` 與 Netlify server-side parser，讀取指定北捷車站的公開到站頁面。
 - 目前前端展示中山站到站觀測；資料保留來源網址與更新時間，並標示為 `ESTIMATED`。
 - 第三方倒數只代表車站觀測，不轉換為全線列車 `TrainState` 或 `LIVE` GPS 位置。
+- 到站觀測改為使用完整路網車站清單切換查詢，不再固定只有中山站。
 
 ### 真實資料嚴格模式
 
