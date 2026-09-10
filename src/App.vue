@@ -15,6 +15,7 @@ const {activeTrains}=useTrainPosition(lines,schedules,simSec)
 const selected=ref(null)
 const viewMode=ref('flat')
 const journeyMode=ref('overview')
+const visualStyle=ref('tech')
 onMounted(async () => { schedules.value = await loadOfficialSchedules(providers, schedules.value) })
 </script>
 <template>
@@ -22,10 +23,10 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
   <header><div><p class="eyebrow">NORTHERN TAIWAN TRAFFIC DIGITAL TWIN</p><h1>台灣軌道交通模擬器</h1><p class="sub">北部捷運路網：北捷四主線 + 板南線 + 桃園機場捷運 + 新北環狀線</p></div><div class="clock"><span class="live-dot"></span>{{formatSimulationTime(simSec)}}</div></header>
   <section class="toolbar">
     <button @click="setNow">現在</button><button @click="playing=!playing">{{playing?'暫停':'播放'}}</button>
-    <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button><button :class="{active:viewMode==='3d'}" @click="viewMode=viewMode==='3d'?'flat':'3d'">{{viewMode==='3d'?'平面圖':'3D 地圖'}}</button><template v-if="viewMode==='3d'"><button :class="{active:journeyMode==='overview'}" @click="journeyMode='overview'">總覽</button><button :class="{active:journeyMode==='follow'}" @click="journeyMode='follow'">跟車旅程</button><button :class="{active:journeyMode==='cab'}" @click="journeyMode='cab'">車內視角</button></template>
+    <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button><button :class="{active:viewMode==='3d'}" @click="viewMode=viewMode==='3d'?'flat':'3d'">{{viewMode==='3d'?'平面圖':'3D 地圖'}}</button><template v-if="viewMode==='3d'"><button :class="{active:journeyMode==='overview'}" @click="journeyMode='overview'">總覽</button><button :class="{active:journeyMode==='follow'}" @click="journeyMode='follow'">跟車旅程</button><button :class="{active:journeyMode==='cab'}" @click="journeyMode='cab'">車內視角</button><button :class="{active:visualStyle==='cute'}" @click="visualStyle=visualStyle==='cute'?'tech':'cute'">{{visualStyle==='cute'?'科技風':'可愛風'}}</button></template>
     <span class="count">運行中 {{activeTrains.length}} 列</span>
   </section>
-  <ThreeRailMap v-if="viewMode==='3d'" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/>
+  <ThreeRailMap v-if="viewMode==='3d'" :key="`${journeyMode}-${visualStyle}`" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" :visual-style="visualStyle" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/>
   <Timeline v-model="simSec"/>
   <section v-if="selected" class="detail">
     <strong>{{selected.trainId}}</strong><span>{{selected.operator}} · {{selected.lineId}} · {{selected.trainType==='EXPRESS'?'直達車':'普通車'}}</span>

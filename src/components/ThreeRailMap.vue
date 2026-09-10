@@ -3,24 +3,25 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, visualStyle: String })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
 let hoveredTrainId = null
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
+const cute = () => props.visualStyle === 'cute'
 
 function addMapBase() {
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(23, 0.25, 11), new THREE.MeshStandardMaterial({ color: 0x172d43, roughness: 0.9 }))
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(23, 0.25, 11), new THREE.MeshStandardMaterial({ color: cute() ? 0xa7d8c8 : 0x172d43, roughness: cute() ? 0.7 : 0.9 }))
   ground.position.y = -0.35
   scene.add(ground)
   const grid = new THREE.GridHelper(23, 23, 0x4f7791, 0x29485f)
   grid.position.y = -0.2
   grid.material.transparent = true
-  grid.material.opacity = 0.35
+  grid.material.opacity = cute() ? 0.15 : 0.35
   scene.add(grid)
-  const mapPlane = new THREE.Mesh(new THREE.PlaneGeometry(23, 11), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.72 }))
+  const mapPlane = new THREE.Mesh(new THREE.PlaneGeometry(23, 11), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: cute() ? 0.16 : 0.72 }))
   mapPlane.rotation.x = -Math.PI / 2
   mapPlane.position.y = -0.17
   scene.add(mapPlane)
@@ -30,22 +31,30 @@ function addMapBase() {
     mapPlane.material.needsUpdate = true
   }, undefined, () => { mapPlane.material.opacity = 0 })
   for (let i = 0; i < 18; i += 1) {
-    const block = new THREE.Mesh(new THREE.BoxGeometry(0.7 + (i % 4) * 0.35, 0.3 + (i % 4) * 0.18, 0.45 + (i % 3) * 0.25), new THREE.MeshStandardMaterial({ color: i % 2 ? 0x274761 : 0x315975 }))
+    const block = new THREE.Mesh(new THREE.BoxGeometry(0.7 + (i % 4) * 0.35, 0.3 + (i % 4) * 0.18, 0.45 + (i % 3) * 0.25), new THREE.MeshStandardMaterial({ color: cute() ? (i % 2 ? 0xffc9a9 : 0xffe3a6) : (i % 2 ? 0x274761 : 0x315975), roughness: cute() ? 0.55 : 0.85 }))
     block.position.set(-10 + (i * 3.1) % 20, block.geometry.parameters.height / 2 - 0.2, -4.3 + (i * 1.7) % 8)
     scene.add(block)
+    if (cute() && i % 2 === 0) {
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.24, 8), new THREE.MeshStandardMaterial({ color: 0x9a6844 }))
+      trunk.position.set(block.position.x + 0.5, 0.06, block.position.z)
+      const crown = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), new THREE.MeshStandardMaterial({ color: i % 4 ? 0x70c783 : 0x82bdf2 }))
+      crown.position.set(trunk.position.x, 0.28, trunk.position.z)
+      scene.add(trunk, crown)
+    }
   }
 }
 
 function addRoutes() {
   props.lines.forEach((line) => {
     const points = line.stations.map((station) => world(station.x, station.y).setY(0.08))
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: line.color })))
+    const routeColor = cute() ? new THREE.Color(line.color).lerp(new THREE.Color(0xffffff), 0.28) : line.color
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: routeColor })))
     line.stations.forEach((station) => {
-      const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.18, 12), new THREE.MeshStandardMaterial({ color: line.color, emissive: line.color, emissiveIntensity: 0.25 }))
+      const marker = new THREE.Mesh(new THREE.CylinderGeometry(cute() ? 0.13 : 0.1, cute() ? 0.13 : 0.1, 0.18, 12), new THREE.MeshStandardMaterial({ color: routeColor, emissive: routeColor, emissiveIntensity: cute() ? 0.08 : 0.25 }))
       const position = world(station.x, station.y)
       marker.position.set(position.x, 0.2, position.z)
       scene.add(marker)
-      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.34), new THREE.MeshStandardMaterial({ color: 0xe5edf4, roughness: 0.7 }))
+      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.44 : 0.34, cute() ? 0.28 : 0.22, cute() ? 0.44 : 0.34), new THREE.MeshStandardMaterial({ color: cute() ? 0xfff2c6 : 0xe5edf4, roughness: cute() ? 0.55 : 0.7 }))
       stationBuilding.position.set(position.x, 0.12, position.z)
       scene.add(stationBuilding)
     })
@@ -55,13 +64,21 @@ function addRoutes() {
 function createTrainMesh(train) {
   const color = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
   const group = new THREE.Group()
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.22, 0.2), new THREE.MeshStandardMaterial({ color: train.trainType === 'EXPRESS' ? 0xe5a83b : color, metalness: 0.25, roughness: 0.35 }))
-  body.position.y = 0.28
+  const body = new THREE.Mesh(cute() ? new THREE.CapsuleGeometry(0.14, 0.42, 5, 12) : new THREE.BoxGeometry(0.62, 0.22, 0.2), new THREE.MeshStandardMaterial({ color: train.trainType === 'EXPRESS' ? (cute() ? 0xffb84d : 0xe5a83b) : (cute() ? new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.2) : color), metalness: cute() ? 0 : 0.25, roughness: cute() ? 0.65 : 0.35 }))
+  if (cute()) body.rotation.z = Math.PI / 2
+  body.position.y = cute() ? 0.34 : 0.28
   body.castShadow = true
   group.add(body)
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.06, 0.17), new THREE.MeshStandardMaterial({ color: 0xe7f4ff }))
+  const roof = new THREE.Mesh(cute() ? new THREE.SphereGeometry(0.15, 12, 8) : new THREE.BoxGeometry(0.48, 0.06, 0.17), new THREE.MeshStandardMaterial({ color: 0xe7f4ff }))
   roof.position.y = 0.43
   group.add(roof)
+  if (cute()) {
+    for (const x of [-0.07, 0.07]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0x26364b }))
+      eye.position.set(0.15, 0.37, x)
+      group.add(eye)
+    }
+  }
   for (const x of [-0.2, 0, 0.2]) {
     const window = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.07, 0.012), new THREE.MeshBasicMaterial({ color: 0x102238 }))
     window.position.set(x, 0.31, 0.107)
