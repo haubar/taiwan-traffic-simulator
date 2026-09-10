@@ -4,6 +4,7 @@ import { lines } from './services/networkLoader.js'
 import { useSimulation, formatSimulationTime } from './composables/useSimulation'
 import { useTrainPosition } from './composables/useTrainPosition'
 import { createTransitProviders, getInitialSchedules, loadOfficialSchedules } from './services/providerService'
+import { buildEstimatedSchedules } from './services/estimatedMotionBuilder.js'
 import RailMap from './components/RailMap.vue'
 import Timeline from './components/Timeline.vue'
 import ThreeRailMap from './components/ThreeRailMap.vue'
@@ -11,8 +12,10 @@ import ScenarioScene from './components/ScenarioScene.vue'
 
 const providers = createTransitProviders(lines)
 const schedules=ref(getInitialSchedules(providers))
+const estimatedSchedules=ref([])
 const {simSec,speed,playing,timeLabel,setNow}=useSimulation()
-const {activeTrains}=useTrainPosition(lines,schedules,simSec)
+const simulationSchedules = computed(() => [...schedules.value, ...estimatedSchedules.value])
+const {activeTrains}=useTrainPosition(lines,simulationSchedules,simSec)
 const selected=ref(null)
 const viewMode=ref('flat')
 const journeyMode=ref('overview')
@@ -25,7 +28,10 @@ const selectTrain = (train) => { selected.value=train; viewMode.value='scene' }
 const demoEnabled = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
 const loadStationDepartures = async (stationName) => {
   stationDepartures.value = null
-  try { stationDepartures.value = await providers.opendataVip.loadDepartures(stationName) } catch (error) { console.warn('[OpenDataVipProvider] unavailable', error) }
+  try {
+    stationDepartures.value = await providers.opendataVip.loadDepartures(stationName)
+    estimatedSchedules.value = buildEstimatedSchedules(lines, stationDepartures.value.departures.map((departure) => ({ ...departure, updatedAt: stationDepartures.value.updatedAt })))
+  } catch (error) { console.warn('[OpenDataVipProvider] unavailable', error) }
 }
 onMounted(async () => {
   schedules.value = await loadOfficialSchedules(providers, schedules.value)

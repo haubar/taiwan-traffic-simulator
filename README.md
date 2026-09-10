@@ -25,6 +25,8 @@ Vue UI → providerService → TRTCProvider / TYMCProvider → Netlify Function 
 `TRTCProvider` 保留北捷公開時刻表與會員 API adapter，不猜測會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方 A1／A22 時刻表與站間運行秒數；`NTMCProvider` 等待官方班次資料接入。Production 預設為嚴格官方資料模式，沒有正式班次就不產生列車；只有設定 `VITE_ENABLE_DEMO_DATA=true` 才會開啟開發用 demo。完整功能與變更紀錄請見 [`docs/FEATURES.md`](docs/FEATURES.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 與 [`CHANGELOG.md`](CHANGELOG.md)。
 另提供 `OpenDataVipProvider` 讀取指定車站的第三方到站頁面；UI 可從完整北部路網車站清單切換查詢。它只呈現車站層級倒數觀測，標示為 `ESTIMATED`，不作為官方 LIVE 列車位置。
 
+到站觀測也會經過 `estimatedMotionBuilder.js` ETL 轉換：依觀測站、目的地、倒數時間與站點地理距離建立局部站間行進段，並從目標站向前反推，使推估車輛能在平面、情境與 3D 地圖上移動。此結果是時間與距離模型，不是 GPS 軌跡。
+
 ## Data flow
 
 Vue 啟動時由 provider 載入官方資料；`TYMCProvider` 呼叫 `/.netlify/functions/trains?operator=TYMC`。Netlify Function server-side 抓取並快取桃捷官方 HTML 時刻表與 CSV 15 分鐘，前端不直接連政府資料站。只有取得官方班次與站間資料後，位置 composable 才會依指定模擬時間做站間 interpolation。

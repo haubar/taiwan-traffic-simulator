@@ -1,0 +1,5 @@
+{
+  "defaultSpeedKph": 35,
+  "minimumRuntimeSeconds": 45,
+  "dwellSeconds": 18
+}
