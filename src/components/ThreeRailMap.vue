@@ -8,6 +8,7 @@ const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
+let hoveredTrainId = null
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
 
 function addMapBase() {
@@ -74,7 +75,7 @@ function syncTrains() {
     mesh.userData.target = world(train.x, train.y)
     mesh.userData.direction = train.direction
     mesh.userData.train = train
-    mesh.scale.setScalar(props.selectedTrain?.id === train.id ? 1.18 : 1)
+    mesh.scale.setScalar(props.selectedTrain?.id === train.id ? 1.18 : hoveredTrainId === train.id ? 1.1 : 1)
   })
   trainMeshes.forEach((mesh, id) => { if (!activeIds.has(id)) { scene.remove(mesh); trainMeshes.delete(id) } })
 }
@@ -109,6 +110,27 @@ function pickTrain(event) {
   if (object?.userData.train) emit('select', object.userData.train)
 }
 
+function hoverTrain(event) {
+  const bounds = renderer.domElement.getBoundingClientRect()
+  const pointer = new THREE.Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
+  raycaster.setFromCamera(pointer, camera)
+  const hit = raycaster.intersectObjects([...trainMeshes.values()], true)[0]
+  let object = hit?.object
+  while (object && !object.userData.train) object = object.parent
+  const nextId = object?.userData.train?.id || null
+  if (nextId === hoveredTrainId) return
+  hoveredTrainId = nextId
+  renderer.domElement.style.cursor = nextId ? 'pointer' : 'grab'
+  syncTrains()
+}
+
+function resetView() {
+  controls.reset()
+  camera.position.set(0, 13, 15)
+  controls.target.set(0, 0, 0)
+  controls.update()
+}
+
 onMounted(() => {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x0b1929)
@@ -121,6 +143,7 @@ onMounted(() => {
   viewport.value.appendChild(renderer.domElement)
   raycaster = new THREE.Raycaster()
   renderer.domElement.addEventListener('click', pickTrain)
+  renderer.domElement.addEventListener('pointermove', hoverTrain)
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
@@ -139,17 +162,18 @@ onMounted(() => {
 })
 watch(() => props.trains, syncTrains, { deep: true })
 watch(() => props.selectedTrain, syncTrains, { deep: true })
-onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); controls?.dispose(); renderer?.dispose(); trainMeshes.clear() })
+onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); renderer?.domElement.removeEventListener('pointermove', hoverTrain); controls?.dispose(); renderer?.dispose(); trainMeshes.clear() })
 </script>
 
 <template>
-  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><small>拖曳平移／旋轉 · 滾輪縮放 · WebGL 車輛平滑行駛</small></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
+  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><span><small>拖曳平移／旋轉 · 滾輪縮放 · WebGL 車輛平滑行駛</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
 </template>
 
 <style scoped>
 .three-map-wrap { overflow: hidden; background: #0b1929; border: 1px solid #29425e; border-radius: 18px; }
 .map-caption { display: flex; justify-content: space-between; padding: 10px 14px; color: #d7e5f5; font-weight: 700; }
 .map-caption small { color: #7790ad; font-weight: 400; }
+.reset-view { margin-left: 10px; border: 1px solid #3a5774; border-radius: 6px; padding: 4px 8px; color: #d9e8f6; background: #142943; cursor: pointer; }
 .three-viewport { height: 520px; cursor: grab; }
 .three-viewport:active { cursor: grabbing; }
 .map-attribution { padding: 5px 10px 8px; color: #7891aa; font-size: 10px; }
