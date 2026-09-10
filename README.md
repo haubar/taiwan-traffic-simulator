@@ -1,6 +1,6 @@
 # Taiwan Traffic Simulator / 台灣軌道交通模擬器
 
-以交通數位分身概念，將台灣軌道交通的列車狀態呈現在 schematic 控制中心介面。目前展示台北捷運板南線 BL01–BL23 與桃園機場捷運 A1–A22，並可在指定時間查看列車所在站間、下一站、ETA 與站間進度。
+以交通數位分身概念，將北部軌道交通的列車狀態呈現在 schematic 控制中心介面。目前展示台北捷運板南線 BL01–BL23、桃園機場捷運 A1–A22 與新北環狀線 Y07–Y20，並可在指定時間查看列車所在站間、下一站、ETA 與站間進度。
 
 ## Architecture
 
@@ -10,7 +10,7 @@ Vue UI → providerService → TRTCProvider / TYMCProvider → Netlify Function 
 
 `src/providers/types.js` 定義統一的 `TrainState`：`id`、`operator`、`lineId`、`trainType`、`direction`、`fromStation`、`toStation`、`departureTime`、`arrivalTime`、`progress`、`source`、`updatedAt`。UI 只接收 provider 資料，不直接讀政府 API。
 
-`TRTCProvider` 保留北捷會員 API adapter 邊界。未設定 key 時使用板南線 SCHEDULED fallback；不猜測官方會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方站間運行秒數，官方資料不可用時回到明確命名的 demo schedules。未來可依同一介面加入台中捷運、高雄捷運、台鐵、高鐵、公車與道路交通。
+`TRTCProvider` 保留北捷會員 API adapter 邊界。未設定 key 時使用板南線 SCHEDULED fallback；不猜測官方會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方站間運行秒數，`NTMCProvider` 目前使用明確命名的環狀線 demo schedule。官方資料不可用時回到 fallback。未來可依同一介面加入北部台鐵、高鐵、公車與道路交通。
 
 ## Data flow
 
@@ -28,6 +28,7 @@ Vue 啟動時先以 demo schedule 呈現可用畫面，再由 `TYMCProvider` 呼
 
 - [桃園捷運列車站間運行時間](https://data.gov.tw/dataset/76721)：桃園市政府資料開放平臺，欄位含路線、車種、站間序號、起訖站代號與站間行駛時間。下載 URL 與 parser 位於 `netlify/providers/tymc.mjs`。
 - [桃捷各站時刻表](https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable.html)：提供 A1–A22、普通車／直達車與停靠站規則，也說明實際到站依當日運行狀況而定。
+- [新北捷運環狀線車站](https://www.ntmetro.com.tw/basic/?node=10138)：官方列出 Y07 大坪林至 Y20 新北產業園區共 14 站；目前僅用於路網與 SCHEDULED fallback。
 - 台北捷運官方 API：正式列車位置／到站資料需會員權限。本專案只預留 `TRTC_API_BASE` 與 `TRTC_API_KEY` adapter，不宣稱目前有 LIVE 連線。
 
 ## Local development
@@ -53,5 +54,5 @@ Netlify Functions 使用 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 s
 1. 驗證北捷會員 API 欄位，完成 LIVE／ESTIMATED adapter。
 2. 以桃捷官方完整班表取代 demo departure seeds，支援日期與服務異動。
 3. 加入北捷其他路線與正式站間資料。
-4. 加入北捷其他路線、新北環狀線、淡海輕軌與安坑輕軌。
+4. 加入淡海輕軌與安坑輕軌。
 5. 加入北部台鐵、高鐵與公車 GPS，逐步形成北部交通數位分身。

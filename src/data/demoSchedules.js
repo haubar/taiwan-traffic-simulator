@@ -14,11 +14,13 @@ function makeTrips(lineId, operator, stations, start, headway, runtime, count, e
 export function createDemoSchedules(lines){
   const bl=lines.find(l=>l.id==='BL').stations.map(s=>s.id)
   const a=lines.find(l=>l.id==='A').stations.map(s=>s.id)
+  const y=lines.find(l=>l.id==='Y').stations.map(s=>s.id)
   const schedules=[]
   for (const dayOffset of [-1, 0, 1]) schedules.push(
     ...makeTrips('BL','TRTC',bl,5*3600+50*60,240,125,115,false,dayOffset),
     ...makeTrips('A','TYMC',a,5*3600+30*60,600,165,48,false,dayOffset),
-    ...makeTrips('A','TYMC',a.filter((_,i)=>[0,2,7,11,12,17,21].includes(i)),6*3600,900,330,32,true,dayOffset)
+    ...makeTrips('A','TYMC',a.filter((_,i)=>[0,2,7,11,12,17,21].includes(i)),6*3600,900,330,32,true,dayOffset),
+    ...makeTrips('Y','NTMC',y,6*3600,480,115,70,false,dayOffset)
   )
   return schedules
 }

@@ -1,12 +1,13 @@
 import { TRTCProvider } from '../providers/TRTCProvider'
 import { TYMCProvider } from '../providers/TYMCProvider'
+import { NTMCProvider } from '../providers/NTMCProvider'
 
 export function createTransitProviders(lines) {
-  return { trtc: new TRTCProvider(lines), tymc: new TYMCProvider(lines) }
+  return { trtc: new TRTCProvider(lines), tymc: new TYMCProvider(lines), ntmc: new NTMCProvider(lines) }
 }
 
 export function getInitialSchedules(providers) {
-  return [...providers.trtc.getSchedules(), ...providers.tymc.getSchedules()]
+  return [...providers.trtc.getSchedules(), ...providers.tymc.getSchedules(), ...providers.ntmc.getSchedules()]
 }
 
 export async function loadOfficialSchedules(providers, schedules) {

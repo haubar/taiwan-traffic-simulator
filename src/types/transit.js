@@ -1,4 +1,4 @@
-/** @typedef {'TRTC'|'TYMC'} Operator */
+/** @typedef {'TRTC'|'TYMC'|'NTMC'} Operator */
 /** @typedef {'LIVE'|'ESTIMATED'|'SCHEDULED'} SourceType */
 /** @typedef {{id:string,name:string,x:number,y:number}} Station */
 /** @typedef {{id:string,operator:Operator,name:string,color:string,stations:Station[]}} RailLine */

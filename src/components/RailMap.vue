@@ -6,7 +6,7 @@ const emit = defineEmits(['select'])
 <template>
   <div class="map-wrap">
     <div class="map-caption"><span>數位分身地圖</span><small>車輛位置為依資料來源推算</small></div>
-    <svg viewBox="0 0 1240 380" class="rail-svg" role="img" aria-label="台灣軌道交通數位分身地圖">
+    <svg viewBox="0 0 1240 520" class="rail-svg" role="img" aria-label="北部軌道交通數位分身地圖">
       <defs>
         <linearGradient id="map-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#142943"/><stop offset="1" stop-color="#0b1829"/></linearGradient>
         <pattern id="map-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="#7192b6" stroke-opacity=".08"/></pattern>

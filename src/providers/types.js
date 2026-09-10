@@ -1,5 +1,5 @@
 /**
- * @typedef {'TRTC'|'TYMC'} Operator
+ * @typedef {'TRTC'|'TYMC'|'NTMC'} Operator
  * @typedef {'LOCAL'|'EXPRESS'} TrainType
  * @typedef {'LIVE'|'ESTIMATED'|'SCHEDULED'} SourceType
  * @typedef {Object} TrainState

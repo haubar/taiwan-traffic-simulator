@@ -16,7 +16,7 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
 </script>
 <template>
 <main class="app-shell">
-  <header><div><p class="eyebrow">TAIWAN TRAFFIC DIGITAL TWIN</p><h1>台灣軌道交通模擬器</h1><p class="sub">MVP：台北捷運板南線 + 桃園機場捷運</p></div><div class="clock"><span class="live-dot"></span>{{formatSimulationTime(simSec)}}</div></header>
+  <header><div><p class="eyebrow">NORTHERN TAIWAN TRAFFIC DIGITAL TWIN</p><h1>台灣軌道交通模擬器</h1><p class="sub">北部路網：板南線 + 桃園機場捷運 + 新北環狀線</p></div><div class="clock"><span class="live-dot"></span>{{formatSimulationTime(simSec)}}</div></header>
   <section class="toolbar">
     <button @click="setNow">現在</button><button @click="playing=!playing">{{playing?'暫停':'播放'}}</button>
     <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button>
