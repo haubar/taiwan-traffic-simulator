@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: Boolean })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
@@ -45,6 +45,9 @@ function addRoutes() {
       const position = world(station.x, station.y)
       marker.position.set(position.x, 0.2, position.z)
       scene.add(marker)
+      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.34), new THREE.MeshStandardMaterial({ color: 0xe5edf4, roughness: 0.7 }))
+      stationBuilding.position.set(position.x, 0.12, position.z)
+      scene.add(stationBuilding)
     })
   })
 }
@@ -88,6 +91,18 @@ function animate() {
     mesh.rotation.y = mesh.userData.direction === 1 ? Math.PI : 0
     mesh.position.y = 0.05 + Math.sin(performance.now() / 170 + mesh.position.x) * 0.015
   })
+  const focus = trainMeshes.get(props.selectedTrain?.id) || trainMeshes.get(props.trains[0]?.id)
+  if (props.journeyMode && focus) {
+    const direction = focus.userData.direction === 1 ? -1 : 1
+    const desiredCamera = new THREE.Vector3(focus.position.x - direction * 2.8, 1.55, focus.position.z + 1.65)
+    camera.position.lerp(desiredCamera, 0.075)
+    controls.target.lerp(new THREE.Vector3(focus.position.x, 0.3, focus.position.z), 0.12)
+    controls.minDistance = 1.2
+    controls.maxDistance = 8
+  } else {
+    controls.minDistance = 5
+    controls.maxDistance = 32
+  }
   controls.update()
   renderer.render(scene, camera)
 }
@@ -166,7 +181,7 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
 </script>
 
 <template>
-  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><span><small>拖曳平移／旋轉 · 滾輪縮放 · WebGL 車輛平滑行駛</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
+  <div class="three-map-wrap"><div class="map-caption"><span>{{ journeyMode ? '列車旅程視角' : '3D 地圖總覽' }}</span><span><small>{{ journeyMode ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
 </template>
 
 <style scoped>
