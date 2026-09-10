@@ -19,6 +19,7 @@ App.vue → composables → services → providers → data / Netlify Functions
 - `netlify/providers/trtc.mjs` 不預設任何認證標頭；待取得北捷會員 API 正式文件後，才由 adapter 注入官方要求的 request headers。
 - 班次參數、來源網址與官方車種代碼 mapping 使用 JSON 資料檔；JS／MJS 只負責讀取、驗證、解析與轉換，provider 內部只使用標準化 `LOCAL`／`EXPRESS`。
 - `netlify/functions/`：只對前端提供受控 endpoint，避免前端直接讀政府 API。
+- `OpenDataVipProvider` 是獨立的第三方車站到站觀測 adapter；它只能提供 `ESTIMATED` 倒數觀測，不會轉成全線 `TrainState` 或 `LIVE` GPS。
 
 ## JavaScript 規則
 

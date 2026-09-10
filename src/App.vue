@@ -18,9 +18,13 @@ const viewMode=ref('flat')
 const journeyMode=ref('overview')
 const visualStyle=ref('tech')
 const scheduleRows = computed(() => activeTrains.value.slice().sort((a,b) => a.arrivalSec - b.arrivalSec).slice(0, 14))
+const stationDepartures = ref(null)
 const selectTrain = (train) => { selected.value=train; viewMode.value='scene' }
 const demoEnabled = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
-onMounted(async () => { schedules.value = await loadOfficialSchedules(providers, schedules.value) })
+onMounted(async () => {
+  schedules.value = await loadOfficialSchedules(providers, schedules.value)
+  try { stationDepartures.value = await providers.opendataVip.loadDepartures('中山') } catch (error) { console.warn('[OpenDataVipProvider] unavailable', error) }
+})
 </script>
 <template>
 <main class="app-shell">
@@ -33,6 +37,7 @@ onMounted(async () => { schedules.value = await loadOfficialSchedules(providers,
   <ThreeRailMap v-if="viewMode==='3d'" :key="`${journeyMode}-${visualStyle}`" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" :visual-style="visualStyle" @select="selectTrain"/><ScenarioScene v-else-if="viewMode==='scene'" :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selectTrain"/>
   <Timeline v-model="simSec"/>
   <section class="schedule-board"><div class="schedule-heading"><div><strong>目前行車表</strong><small>依目前模擬時間排序 · 點擊列車進入情境行進</small></div><span>{{ scheduleRows.length }} 筆運行資料</span></div><div class="schedule-table"><button v-for="train in scheduleRows" :key="train.id" class="schedule-row" :class="{selected:selected?.id===train.id}" @click="selectTrain(train)"><b>{{train.trainId}}</b><span>{{train.lineId}} · {{train.trainType==='EXPRESS'?'直達車':'普通車'}}</span><span>{{train.fromName}} → {{train.toName}}</span><span>抵達 {{formatSimulationTime(train.arrivalSec)}}</span><em :class="train.source.toLowerCase()">{{train.source}}</em></button><p v-if="!scheduleRows.length">目前時間沒有可顯示的運行班次，請拖曳時間軸。</p></div></section>
+  <section v-if="stationDepartures?.departures?.length" class="schedule-board estimated-arrivals"><div class="schedule-heading"><div><strong>中山站第三方到站觀測</strong><small>OpenData.vip · 每次抓取為車站倒數，不代表列車 GPS 位置</small></div><span class="estimated">ESTIMATED</span></div><div class="schedule-table"><div v-for="departure in stationDepartures.departures" :key="departure.id" class="schedule-row arrival-row"><b>{{departure.stationName}}</b><span>往 {{departure.destination}}</span><span>{{departure.status==='ARRIVING'?'列車進站':`約 ${departure.etaSeconds} 秒`}}</span><em class="estimated">ESTIMATED</em></div></div></section>
   <section v-if="selected" class="detail">
     <strong>{{selected.trainId}}</strong><span>{{selected.operator}} · {{selected.lineId}} · {{selected.trainType==='EXPRESS'?'直達車':'普通車'}}</span>
     <span>{{selected.direction===0?'往終點':'往起點'}} · {{selected.fromName}} → {{selected.toName}}</span><span>{{selected.status==='DWELLING'?'停靠中':'行駛中'}} · 進度 {{Math.round(selected.progress*100)}}%</span>

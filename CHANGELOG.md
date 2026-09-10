@@ -4,6 +4,12 @@
 
 ## 2026-09-10
 
+### 第三方車站到站觀測 adapter
+
+- 新增 `OpenDataVipProvider` 與 Netlify server-side parser，讀取指定北捷車站的公開到站頁面。
+- 目前前端展示中山站到站觀測；資料保留來源網址與更新時間，並標示為 `ESTIMATED`。
+- 第三方倒數只代表車站觀測，不轉換為全線列車 `TrainState` 或 `LIVE` GPS 位置。
+
 ### 真實資料嚴格模式
 
 - Production 預設關閉 demo schedule，不再把程式生成班次標示成 SCHEDULED 官方資料。

@@ -1,9 +1,20 @@
 import { fetchTYMCDepartures, fetchTYMCInterstation } from '../providers/tymc.mjs'
+import { fetchOpenDataVipDepartures } from '../providers/opendataVip.mjs'
 
 let cache = { expiresAt: 0, interstationTimes: [], departures: { departures: [] } }
 
 export default async (request) => {
   const operator = new URL(request.url).searchParams.get('operator')
+  if (operator === 'OPENDATAVIP') {
+    const station = new URL(request.url).searchParams.get('station') || '中山'
+    try {
+      const payload = await fetchOpenDataVipDepartures(station)
+      return Response.json({ ok: true, ...payload }, { headers: { 'cache-control': 'public, max-age=10' } })
+    } catch (error) {
+      console.error('[trains] OpenData.vip fetch failed', error)
+      return Response.json({ ok: false, source: 'ESTIMATED', departures: [], error: '第三方到站資料暫時無法取得' }, { status: 502 })
+    }
+  }
   if (operator !== 'TYMC') return Response.json({ ok: true, mode: 'official-not-configured', source: 'SCHEDULED', interstationTimes: [], departures: { departures: [] } })
   if (cache.expiresAt < Date.now()) {
     try {

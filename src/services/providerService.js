@@ -1,10 +1,11 @@
 import { createTRTCProvider } from '../providers/TRTCProvider.js'
 import { createTYMCProvider } from '../providers/TYMCProvider.js'
 import { createNTMCProvider } from '../providers/NTMCProvider.js'
+import { createOpenDataVipProvider } from '../providers/OpenDataVipProvider.js'
 
 export const createTransitProviders = (lines) => {
   const allowDemo = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
-  return { trtc: createTRTCProvider(lines, import.meta.env, allowDemo), tymc: createTYMCProvider(lines, allowDemo), ntmc: createNTMCProvider(lines, allowDemo) }
+  return { trtc: createTRTCProvider(lines, import.meta.env, allowDemo), tymc: createTYMCProvider(lines, allowDemo), ntmc: createNTMCProvider(lines, allowDemo), opendataVip: createOpenDataVipProvider() }
 }
 
 export const getInitialSchedules = (providers) => {
