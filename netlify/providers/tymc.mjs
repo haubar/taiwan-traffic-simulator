@@ -15,7 +15,7 @@ export function parseInterstationCsv(csv) {
   const from = find('起站車站代號', '起站')
   const to = find('迄站車站代號', '迄站')
   const seconds = find('站間行駛時間', '運行時間')
-  return rows.slice(1).map((row) => ({ routeCode: row[route], vehicleType: row[type], sequence: row[serial], fromStation: row[from], toStation: row[to], seconds: Number(row[seconds]) })).filter((row) => row.fromStation && row.toStation && Number.isFinite(row.seconds))
+  return rows.slice(1).map((row) => ({ routeCode: row[route], vehicleType: row[type], sequence: row[serial], fromStation: row[from], toStation: row[to], seconds: Number(row[seconds]) })).filter((row) => row.fromStation && row.toStation && Number.isFinite(row.seconds) && row.seconds > 0)
 }
 
 export async function fetchTYMCInterstation() {
