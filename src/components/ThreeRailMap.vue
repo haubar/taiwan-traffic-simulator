@@ -1,10 +1,11 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 const props = defineProps({ lines: Array, trains: Array })
 const viewport = ref(null)
-let renderer, animationFrame, scene, camera
+let renderer, animationFrame, scene, camera, controls
 const trainMeshes = new Map()
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
 
@@ -74,10 +75,7 @@ function animate() {
     mesh.rotation.y = mesh.userData.direction === 1 ? Math.PI : 0
     mesh.position.y = 0.05 + Math.sin(performance.now() / 170 + mesh.position.x) * 0.015
   })
-  const time = performance.now() * 0.00008
-  camera.position.x = Math.sin(time) * 15
-  camera.position.z = 13 + Math.cos(time) * 2
-  camera.lookAt(0, 0, 0)
+  controls.update()
   renderer.render(scene, camera)
 }
 
@@ -92,12 +90,20 @@ onMounted(() => {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x0b1929)
   camera = new THREE.PerspectiveCamera(42, viewport.value.clientWidth / viewport.value.clientHeight, 0.1, 100)
-  camera.position.set(0, 13, 13)
+  camera.position.set(0, 13, 15)
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight)
   renderer.shadowMap.enabled = true
   viewport.value.appendChild(renderer.domElement)
+  controls = new OrbitControls(camera, renderer.domElement)
+  controls.enableDamping = true
+  controls.dampingFactor = 0.08
+  controls.enablePan = true
+  controls.minDistance = 5
+  controls.maxDistance = 32
+  controls.maxPolarAngle = Math.PI / 2.05
+  controls.target.set(0, 0, 0)
   scene.add(new THREE.HemisphereLight(0xb8dcff, 0x183047, 2.2))
   const sun = new THREE.DirectionalLight(0xffffff, 2.5)
   sun.position.set(-5, 12, 7)
@@ -107,11 +113,11 @@ onMounted(() => {
   window.addEventListener('resize', resize)
 })
 watch(() => props.trains, syncTrains, { deep: true })
-onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.dispose(); trainMeshes.clear() })
+onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); controls?.dispose(); renderer?.dispose(); trainMeshes.clear() })
 </script>
 
 <template>
-  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><small>WebGL · 車輛平滑行駛</small></div><div ref="viewport" class="three-viewport"></div></div>
+  <div class="three-map-wrap"><div class="map-caption"><span>3D 地圖模擬</span><small>拖曳平移／旋轉 · 滾輪縮放 · WebGL 車輛平滑行駛</small></div><div ref="viewport" class="three-viewport"></div></div>
 </template>
 
 <style scoped>
