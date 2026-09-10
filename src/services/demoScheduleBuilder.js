@@ -1,4 +1,4 @@
-import config from './demoScheduleConfig.json' with { type: 'json' }
+import config from '../data/demoScheduleConfig.json' with { type: 'json' }
 
 const makeTrips = (lineId, operator, stations, start, headway, runtime, count, trainType, stoppingIndexes, dayOffset=0) => {
   const trips=[]

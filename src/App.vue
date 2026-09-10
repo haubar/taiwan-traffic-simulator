@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { lines } from './data/network'
+import { lines } from './services/networkLoader.js'
 import { useSimulation, formatSimulationTime } from './composables/useSimulation'
 import { useTrainPosition } from './composables/useTrainPosition'
 import { createTransitProviders, getInitialSchedules, loadOfficialSchedules } from './services/providerService'
