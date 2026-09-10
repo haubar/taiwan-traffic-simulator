@@ -15,8 +15,8 @@ const emit=defineEmits(['select'])
         </g>
       </g>
       <g v-for="t in trains" :key="t.id" class="train" @click="emit('select',t)" @keydown.enter="emit('select',t)" tabindex="0" :aria-label="`${t.trainId}，下一站 ${t.toName}`">
-        <circle :cx="t.x" :cy="t.y" :r="selectedTrain?.id===t.id?13:10" class="train-dot" :style="{stroke: lines.find(line => line.id === t.lineId)?.color}"/>
-        <text :x="t.x" :y="t.y-17" text-anchor="middle" class="train-label">{{t.trainType==='EXPRESS'?'🚄':'🚇'}}</text>
+        <circle :cx="t.x" :cy="t.y" :r="selectedTrain?.id===t.id?13:10" class="train-dot" :class="t.trainType.toLowerCase()" :style="{stroke: lines.find(line => line.id === t.lineId)?.color}"/>
+        <text :x="t.x" :y="t.y-17" text-anchor="middle" class="train-label">{{t.trainType==='EXPRESS'?'🚄':'🚇'}} {{t.direction===0?'→':'←'}}</text>
         <title>{{ t.trainId }} · 下一站 {{ t.toName }} · {{ Math.round(t.progress * 100) }}%</title>
       </g>
     </svg>

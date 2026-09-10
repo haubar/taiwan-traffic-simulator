@@ -12,9 +12,11 @@ export class TYMCProvider {
   }
 
   applyInterstationTimes(schedules, rows) {
-    const byPair = new Map(rows.map((row) => [`${row.fromStation}->${row.toStation}`, row.seconds]))
+    const byPair = new Map(rows.map((row) => [`${row.fromStation}->${row.toStation}->${row.vehicleType}`, row.seconds]))
     return schedules.map((schedule) => {
-      const seconds = byPair.get(`${schedule.fromStation}->${schedule.toStation}`)
+      const pair = `${schedule.fromStation}->${schedule.toStation}`
+      const typed = rows.find((row) => `${row.fromStation}->${row.toStation}` === pair && (schedule.trainType === 'EXPRESS') === String(row.vehicleType).includes('直達'))
+      const seconds = typed?.seconds || byPair.get(`${pair}->${schedule.trainType === 'EXPRESS' ? '直達車' : '普通車'}`)
       return seconds ? { ...schedule, arrivalSec: schedule.departureSec + seconds } : schedule
     })
   }
