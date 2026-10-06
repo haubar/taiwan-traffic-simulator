@@ -1,7 +1,9 @@
 import { fetchTYMCDepartures, fetchTYMCInterstation } from '../providers/tymc.mjs'
+import { fetchTRTCSchedules } from '../providers/trtc.mjs'
 import { fetchOpenDataVipDepartures } from '../providers/opendataVip.mjs'
 
 let cache = { expiresAt: 0, interstationTimes: [], departures: { departures: [] } }
+let trtcCache = { expiresAt: 0, schedules: [] }
 
 export default async (request) => {
   const operator = new URL(request.url).searchParams.get('operator')
@@ -14,6 +16,20 @@ export default async (request) => {
       console.error('[trains] OpenData.vip fetch failed', error)
       return Response.json({ ok: false, source: 'ESTIMATED', departures: [], error: '第三方到站資料暫時無法取得' }, { status: 502 })
     }
+  }
+  if (operator === 'TRTC') {
+    if (trtcCache.expiresAt < Date.now()) {
+      try {
+        const schedules = await fetchTRTCSchedules()
+        if (!schedules.length) throw new Error('No Taipei Metro timetable rows found')
+        trtcCache = { expiresAt: Date.now() + 60 * 60 * 1000, schedules }
+      } catch (error) {
+        console.error('[trains] TRTC timetable fetch failed', error)
+        if (!trtcCache.schedules.length) return Response.json({ ok: false, source: 'SCHEDULED', schedules: [], error: '台北捷運官方時刻表暫時無法取得' }, { status: 502 })
+        trtcCache.expiresAt = Date.now() + 5 * 60 * 1000
+      }
+    }
+    return Response.json({ ok: true, mode: 'official-static', source: 'SCHEDULED', fetchedAt: new Date().toISOString(), schedules: trtcCache.schedules }, { headers: { 'cache-control': 'public, max-age=3600' } })
   }
   if (operator !== 'TYMC') return Response.json({ ok: true, mode: 'official-not-configured', source: 'SCHEDULED', interstationTimes: [], departures: { departures: [] } })
   if (cache.expiresAt < Date.now()) {

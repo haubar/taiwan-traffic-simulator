@@ -16,7 +16,7 @@ App.vue → composables → services → providers → data / Netlify Functions
 - `data/`：只保存 JSON 原始資料與設定；demo 只能由 `VITE_ENABLE_DEMO_DATA=true` 開啟。
 - `services/networkLoader.js`、`services/geographyProjection.js`：讀取 JSON 並產生 UI 共用的路線／投影資料。
 - `netlify/providers/`：server-side 官方資料 parser、schema validation、重試與 credential adapter；來源網址放在 `netlify/data/*.json`。
-- `netlify/providers/trtc.mjs` 不預設任何認證標頭；待取得北捷會員 API 正式文件後，才由 adapter 注入官方要求的 request headers。
+- `netlify/providers/trtc.mjs` 解析臺北捷運公開站別時刻表 CSV；即時列車位置仍需另外取得會員 API 文件與權限。
 - 班次參數、來源網址與官方車種代碼 mapping 使用 JSON 資料檔；JS／MJS 只負責讀取、驗證、解析與轉換，provider 內部只使用標準化 `LOCAL`／`EXPRESS`。
 - `netlify/functions/`：只對前端提供受控 endpoint，避免前端直接讀政府 API。
 - `OpenDataVipProvider` 是獨立的第三方車站到站觀測 adapter；它只能提供 `ESTIMATED` 倒數觀測，不會轉成全線 `TrainState` 或 `LIVE` GPS。
@@ -44,8 +44,8 @@ export const formatClock = (seconds) => String(seconds)
 
 1. `App.vue` 建立 provider service。
 2. Provider 在嚴格模式只回傳已驗證的官方資料；沒有官方資料時回傳空集合。
-3. TYMC provider 呼叫 Netlify Function，Function server-side 取得官方 CSV 並快取。
-4. Service 將官方站間資料套用至已取得的官方 schedule；失敗時不把 fallback 冒充官方資料。
+3. TRTC、TYMC provider 呼叫 Netlify Function；Function server-side 取得官方 CSV 並快取。
+4. Service 分別載入北捷官方站別時刻表與桃捷官方班表／站間時間；失敗時不把 fallback 冒充官方資料。
 5. `useTrainPosition` 依模擬時間輸出 TrainState 與畫面座標。
 6. 平面圖、情境行進與 3D 圖只消費標準化狀態；情境行進額外消費站點經緯度與路線資料決定場景內容。
 

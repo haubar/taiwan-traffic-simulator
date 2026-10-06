@@ -5,7 +5,7 @@ import { createOpenDataVipProvider } from '../providers/OpenDataVipProvider.js'
 
 export const createTransitProviders = (lines) => {
   const allowDemo = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
-  return { trtc: createTRTCProvider(lines, import.meta.env, allowDemo), tymc: createTYMCProvider(lines, allowDemo), ntmc: createNTMCProvider(lines, allowDemo), opendataVip: createOpenDataVipProvider() }
+  return { trtc: createTRTCProvider(lines, allowDemo), tymc: createTYMCProvider(lines, allowDemo), ntmc: createNTMCProvider(lines, allowDemo), opendataVip: createOpenDataVipProvider() }
 }
 
 export const getInitialSchedules = (providers) => {
@@ -13,7 +13,12 @@ export const getInitialSchedules = (providers) => {
 }
 
 export const loadOfficialSchedules = async (providers, schedules) => {
-  const payload = await providers.tymc.loadOfficialData()
-  if (!payload) return schedules
-  return [...schedules.filter((schedule) => schedule.operator !== 'TYMC'), ...providers.tymc.buildOfficialSchedules(payload)]
+  const [trtcPayload, tymcPayload] = await Promise.all([
+    providers.trtc.loadOfficialData(),
+    providers.tymc.loadOfficialData()
+  ])
+  let loaded = schedules
+  if (trtcPayload) loaded = [...loaded.filter((schedule) => schedule.operator !== 'TRTC'), ...trtcPayload.schedules]
+  if (tymcPayload) loaded = [...loaded.filter((schedule) => schedule.operator !== 'TYMC'), ...providers.tymc.buildOfficialSchedules(tymcPayload)]
+  return loaded
 }

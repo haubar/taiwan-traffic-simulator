@@ -1,0 +1,14 @@
+[
+  { "serviceDay": "weekday", "resourceId": "9befd704-fda6-46b4-ad33-98bbc81f7bac" },
+  { "serviceDay": "weekday", "resourceId": "c526a43a-fc82-4ba3-beda-0497a303fc4a" },
+  { "serviceDay": "weekday", "resourceId": "3924acc7-6b11-411e-acd5-aacbe1186a7a" },
+  { "serviceDay": "weekday", "resourceId": "968f7322-36ca-43c4-816c-9f8448a9b4fb" },
+  { "serviceDay": "saturday", "resourceId": "0ad40b75-d9cd-4eef-8ca2-38688be61205" },
+  { "serviceDay": "saturday", "resourceId": "6d2a2636-825d-4ec2-b4f5-9f853add9472" },
+  { "serviceDay": "saturday", "resourceId": "46bd70db-62a7-4607-b0f2-221eb2002753" },
+  { "serviceDay": "saturday", "resourceId": "6fd19e60-2164-4b97-bd41-7059c4c943c8" },
+  { "serviceDay": "sunday", "resourceId": "0ad40b75-d9cd-4eef-8ca2-38688be61205" },
+  { "serviceDay": "sunday", "resourceId": "6d2a2636-825d-4ec2-b4f5-9f853add9472" },
+  { "serviceDay": "sunday", "resourceId": "46bd70db-62a7-4607-b0f2-221eb2002753" },
+  { "serviceDay": "sunday", "resourceId": "a5f81758-a5a0-44f2-b24c-7f87ffec6283" }
+]

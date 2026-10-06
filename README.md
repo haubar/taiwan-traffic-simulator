@@ -22,7 +22,7 @@ Vue UI → providerService → TRTCProvider / TYMCProvider → Netlify Function 
 
 `src/providers/types.js` 定義統一的 `TrainState`：`id`、`operator`、`lineId`、`trainType`、`direction`、`fromStation`、`toStation`、`departureTime`、`arrivalTime`、`progress`、`source`、`updatedAt`。UI 只接收 provider 資料，不直接讀政府 API。
 
-`TRTCProvider` 保留北捷公開時刻表與會員 API adapter，不猜測會員 API 的 URL、認證或欄位。`TYMCProvider` 透過 Netlify Function 取得桃捷官方 A1／A22 時刻表與站間運行秒數；`NTMCProvider` 等待官方班次資料接入。Production 預設為嚴格官方資料模式，沒有正式班次就不產生列車；只有設定 `VITE_ENABLE_DEMO_DATA=true` 才會開啟開發用 demo。完整功能與變更紀錄請見 [`docs/FEATURES.md`](docs/FEATURES.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 與 [`CHANGELOG.md`](CHANGELOG.md)。
+`TRTCProvider` 載入台北捷運公開站別時刻表；`TYMCProvider` 透過 Netlify Function 取得桃捷官方 A1／A22 時刻表與站間運行秒數；`NTMCProvider` 等待官方班次資料接入。Production 預設為嚴格官方資料模式，沒有正式班次就不產生列車；只有設定 `VITE_ENABLE_DEMO_DATA=true` 才會開啟開發用 demo。完整功能與變更紀錄請見 [`docs/FEATURES.md`](docs/FEATURES.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 與 [`CHANGELOG.md`](CHANGELOG.md)。
 另提供 `OpenDataVipProvider` 讀取指定車站的第三方到站頁面；UI 可從完整北部路網車站清單切換查詢。它只呈現車站層級倒數觀測，標示為 `ESTIMATED`，不作為官方 LIVE 列車位置。
 
 到站觀測也會經過 `estimatedMotionBuilder.js` ETL 轉換：依觀測站、目的地、倒數時間與站點地理距離建立局部站間行進段，並從目標站向前反推，使推估車輛能在平面、情境與 3D 地圖上移動。此結果是時間與距離模型，不是 GPS 軌跡。
@@ -43,8 +43,9 @@ Vue 啟動時由 provider 載入官方資料；`TYMCProvider` 呼叫 `/.netlify/
 
 - [桃園捷運列車站間運行時間](https://data.gov.tw/dataset/76721)：桃園市政府資料開放平臺，欄位含路線、車種、站間序號、起訖站代號與站間行駛時間。下載 URL 與 parser 位於 `netlify/providers/tymc.mjs`。
 - [桃捷各站時刻表](https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/timetable.html)：提供 A1–A22、普通車／直達車與停靠站規則，也說明實際到站依當日運行狀況而定。
+- [臺北捷運站別時刻表資料服務](https://data.gov.tw/dataset/131737)：官方 CSV 含各站、方向、目的地、班次序號及發車時間，提供平日與假日資料。Netlify Function 依台北時間選取服務日、每小時快取並轉成模擬班次；相鄰站抵達時間依兩站官方發車時刻推算。此資料集目前含板南、淡水信義、松山新店與中和新蘆線，未提供文湖線站別班表。
 - [新北捷運環狀線車站](https://www.ntmetro.com.tw/basic/?node=10138)：官方列出 Y07 大坪林至 Y20 新北產業園區共 14 站；目前只用於路網展示，尚未產生列車班次。
-- 台北捷運官方 API：正式列車位置／到站資料需會員權限。本專案只預留 `TRTC_API_BASE` 與 `TRTC_API_KEY` adapter，不宣稱目前有 LIVE 連線。
+- 台北捷運即時列車位置／到站資料仍需會員 API 權限；本專案目前接入的是公開靜態站別時刻表，不宣稱有 LIVE 連線。
 
 ## Local development
 
@@ -58,7 +59,7 @@ npm run build
 
 ## Environment variables
 
-Netlify Functions 預留 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 server-side。北捷 adapter 不會自行猜測認證標頭，必須在取得官方會員 API 文件後提供明確的 request-header mapping。Vite adapter 檢查用變數為 `VITE_TRTC_API_BASE`、`VITE_TRTC_API_KEY`。`VITE_ENABLE_DEMO_DATA` 預設為 `false`，設定為 `true` 僅供本地開發。任何環境變數都不會自動宣稱 LIVE，仍需完成官方欄位 mapping 與認證流程。
+`VITE_ENABLE_DEMO_DATA` 預設為 `false`，設定為 `true` 僅供本地開發。公開的台北捷運站別時刻表由 Netlify Function 直接下載並快取，不需要 API key。
 
 ## Netlify deployment
 
@@ -66,8 +67,6 @@ Netlify Functions 預留 `TRTC_API_BASE`、`TRTC_API_KEY`；兩者只應放在 s
 
 ## Roadmap
 
-1. 驗證北捷會員 API 欄位，完成 LIVE／ESTIMATED adapter。
-2. 北捷公開時刻表 parser：依官方 PDF／站頁的平日、週六、國定假日欄位載入完整班表。
-3. 取得四條北捷新增路線的官方站間運行資料與完整班表。
-4. 完成四條新增北捷路線的 LIVE／ESTIMATED adapter。
-5. （目前範圍不包含台鐵、高鐵、公車與道路交通。）
+1. 取得文湖線可供模擬的官方站別時刻資料。
+2. 驗證北捷會員 API 欄位，完成 LIVE／ESTIMATED adapter。
+3. （目前範圍不包含台鐵、高鐵、公車與道路交通。）
