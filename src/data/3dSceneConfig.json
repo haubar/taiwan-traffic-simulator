@@ -37,6 +37,7 @@
     "routeClearance": 0.58,
     "cameraPosition": [7, 10, 8],
     "cameraTarget": [0, 0, 0],
+    "cameraFov": 50,
     "hemisphereIntensity": 2.5,
     "sunIntensity": 2.0
   },

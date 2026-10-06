@@ -648,7 +648,7 @@ const resetView = () => {
 onMounted(() => {
   scene = new THREE.Scene()
   scene.background = frameBackground.copy(nightBackground).lerp(dayBackground, props.daylight ?? 1)
-  camera = new THREE.PerspectiveCamera(42, viewport.value.clientWidth / viewport.value.clientHeight, 0.1, 100)
+  camera = new THREE.PerspectiveCamera(palette.cameraFov, viewport.value.clientWidth / viewport.value.clientHeight, 0.1, 100)
   camera.position.set(...palette.cameraPosition)
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
