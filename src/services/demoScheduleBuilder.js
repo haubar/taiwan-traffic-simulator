@@ -26,7 +26,8 @@ export const createDemoSchedules = (lines) => {
   for (const dayOffset of config.days) for (const route of config.routes) {
     const stationIds = { BL:bl, A:a, Y:y, R:r, G:g, O:o, OL:ol, BR:br }[route.lineId]
     const selectedStations = route.stoppingIndexes ? stationIds.filter((_, index) => route.stoppingIndexes.includes(index)) : stationIds
-    schedules.push(...makeTrips(route.lineId, route.operator, selectedStations, route.start, route.headway, route.runtime, route.count, route.trainType, route.stoppingIndexes, dayOffset))
+    const count = Math.floor((route.end - route.start) / route.headway) + 1
+    schedules.push(...makeTrips(route.lineId, route.operator, selectedStations, route.start, route.headway, route.runtime, count, route.trainType, route.stoppingIndexes, dayOffset))
   }
   return schedules
 }
