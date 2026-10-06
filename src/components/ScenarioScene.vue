@@ -6,6 +6,11 @@ const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, 
 const emit = defineEmits(['select'])
 
 const focusTrain = computed(() => props.selectedTrain ?? props.trains[0] ?? null)
+const visibleTrains = computed(() => {
+  const visible = props.trains.slice(0, 12)
+  if (props.selectedTrain && !visible.some((train) => train.trainId === props.selectedTrain.trainId)) visible[visible.length - 1] = props.selectedTrain
+  return visible
+})
 const focusLine = computed(() => props.lines.find((line) => line.id === focusTrain.value?.lineId) ?? props.lines[0])
 const isAirport = computed(() => focusTrain.value?.operator === 'TYMC')
 const isMountain = computed(() => ['R', 'G', 'BR'].includes(focusTrain.value?.lineId))
@@ -29,10 +34,17 @@ const sceneColors = computed(() => ({
   caption: blend('#e0eafa', '#183c45')
 }))
 const stars = [[74, 73], [176, 126], [284, 64], [405, 111], [540, 55], [650, 136], [778, 74], [888, 122], [1104, 62], [1150, 155]]
-const trainX = (train) => 110 + train.progress * 980
+const trainX = (train) => {
+  const line = props.lines.find((candidate) => candidate.id === train.lineId)
+  const fromIndex = line?.stations.findIndex((station) => station.id === train.fromStation) ?? -1
+  const toIndex = line?.stations.findIndex((station) => station.id === train.toStation) ?? -1
+  if (!line || fromIndex < 0 || toIndex < 0) return 110
+  const routeProgress = (fromIndex + (toIndex - fromIndex) * train.progress) / Math.max(1, line.stations.length - 1)
+  return 110 + routeProgress * 980
+}
 const trainY = (train) => train === focusTrain.value ? 378 : 394 + (train.direction ? 15 : -15)
 const trainRotation = (train) => train.direction === 0 ? 0 : 180
-const stationAt = (train) => train?.status === 'DWELLING' ? train.fromName : train?.toName
+const stationAt = (train) => train?.status === 'DWELLING' ? train.toName : train?.fromName
 const nearbyStations = computed(() => {
   const line = focusLine.value
   if (!line || !focusTrain.value) return []
@@ -73,7 +85,7 @@ const stationX = (station) => {
         <path d="M0 455 Q300 424 610 462 T1200 447" fill="none" stroke="#f6dc79" stroke-width="4" stroke-dasharray="38 26"/>
         <g class="rail-structure" :class="{ elevated: isElevated }"><path d="M0 382 H1200" stroke="url(#scene-track)" stroke-width="34"/><path d="M0 370 H1200 M0 394 H1200" stroke="#dce4e6" stroke-width="5"/><path d="M0 350 H1200" stroke="#303c47" stroke-width="9" stroke-dasharray="4 28"/></g>
         <g v-for="station in nearbyStations" :key="station.id" class="scene-station" :transform="`translate(${stationX(station)} 0)`"><rect x="-42" y="330" width="84" height="27" rx="5"/><text y="348" text-anchor="middle">{{ station.id }}</text><text y="314" text-anchor="middle" class="scene-station-name">{{ station.name }}</text></g>
-        <g v-for="train in trains.slice(0, 12)" :key="train.id" class="scene-train" :class="{ selected: selectedTrain?.id === train.id, focus: focusTrain?.id === train.id }" :transform="`translate(${trainX(train)} ${trainY(train)}) rotate(${trainRotation(train)})`" @click="emit('select', train)">
+        <g v-for="train in visibleTrains" :key="train.trainId" class="scene-train" :class="{ selected: selectedTrain?.trainId === train.trainId, focus: focusTrain?.trainId === train.trainId }" :transform="`translate(${trainX(train)} ${trainY(train)}) rotate(${trainRotation(train)})`" @click="emit('select', train)">
           <ellipse cx="0" cy="19" rx="52" ry="9" fill="#1b2b35" opacity=".34"/>
           <g filter="url(#scene-shadow)"><rect x="-48" y="-23" width="96" height="43" rx="14" class="scene-vehicle" :style="{ '--vehicle-color': props.lines.find((line) => line.id === train.lineId)?.color }"/><path d="M35 -23 L51 -10 V7 L35 20Z" fill="#f9fbf0" opacity=".8"/><rect x="-32" y="-13" width="17" height="11" rx="3" class="scene-window"/><rect x="-9" y="-13" width="17" height="11" rx="3" class="scene-window"/><rect x="14" y="-13" width="13" height="11" rx="3" class="scene-window"/><circle cx="-29" cy="20" r="5" class="scene-wheel"/><circle cx="29" cy="20" r="5" class="scene-wheel"/></g>
           <text x="0" y="-34" text-anchor="middle" class="scene-train-label">{{ train.trainId }} · {{ train.trainType === 'EXPRESS' ? '直達' : '普通' }}</text>

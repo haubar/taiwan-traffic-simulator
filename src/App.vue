@@ -19,6 +19,7 @@ const { daylight, sunrise, sunset } = useSolarCycle(simSec)
 const simulationSchedules = computed(() => [...schedules.value, ...estimatedSchedules.value])
 const {activeTrains}=useTrainPosition(lines,simulationSchedules,simSec)
 const selected=ref(null)
+const selectedTrain = computed(() => selected.value ? activeTrains.value.find((train) => train.trainId === selected.value.trainId) ?? null : null)
 const viewMode=ref('flat')
 const journeyMode=ref('overview')
 const scheduleRows = computed(() => activeTrains.value.slice().sort((a,b) => a.arrivalSec - b.arrivalSec).slice(0, 14))
@@ -114,7 +115,7 @@ onBeforeUnmount(() => { if (cacheTimer.value) window.clearInterval(cacheTimer.va
     <div class="toolbar-meta"><span class="count">運行中 {{activeTrains.length}} 列</span><button class="dashboard-toggle" :class="{active:dashboardOpen}" :aria-expanded="dashboardOpen" @click="dashboardOpen=!dashboardOpen">{{dashboardOpen?'收合儀表板':'開啟儀表板'}}</button></div>
   </section>
   <section class="map-dashboard-layout" :class="{'dashboard-hidden':!dashboardOpen}">
-    <div class="map-column"><ThreeRailMap v-if="viewMode==='3d'" :key="journeyMode" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" :sim-sec="simSec" @select="selectTrain"/><ScenarioScene v-else-if="viewMode==='scene'" :lines="lines" :trains="activeTrains" :selected-train="selected" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selectTrain"/></div>
+    <div class="map-column"><ThreeRailMap v-if="viewMode==='3d'" :key="journeyMode" :lines="lines" :trains="activeTrains" :selected-train="selectedTrain" :journey-mode="journeyMode" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" :sim-sec="simSec" @select="selectTrain"/><ScenarioScene v-else-if="viewMode==='scene'" :lines="lines" :trains="activeTrains" :selected-train="selectedTrain" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" @select="selectTrain"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selectedTrain" @select="selectTrain"/></div>
     <aside v-if="dashboardOpen" class="live-dashboard" aria-label="即時交通儀表板">
       <div class="dashboard-heading"><div><span class="live-dot"></span><strong>即時儀表板</strong></div><small>隨模擬時間更新</small></div>
       <div class="metric-grid">
@@ -136,10 +137,10 @@ onBeforeUnmount(() => { if (cacheTimer.value) window.clearInterval(cacheTimer.va
   <Timeline v-model="simSec"/>
   <section class="schedule-board"><div class="schedule-heading"><div><strong>目前行車表</strong><small>依目前模擬時間排序 · 點擊列車進入情境行進</small></div><span>{{ scheduleRows.length }} 筆運行資料</span></div><div class="schedule-table"><button v-for="train in scheduleRows" :key="train.id" class="schedule-row" :class="{selected:selected?.id===train.id}" @click="selectTrain(train)"><b>{{train.trainId}}</b><span>{{train.lineId}} · {{train.trainType==='EXPRESS'?'直達車':'普通車'}}</span><span>{{train.fromName}} → {{train.toName}}</span><span>抵達 {{formatSimulationTime(train.arrivalSec)}}</span><em :class="train.source.toLowerCase()">{{train.source}}</em></button><p v-if="!scheduleRows.length">目前時間沒有可顯示的運行班次，請拖曳時間軸。</p></div></section>
   <section class="schedule-board estimated-arrivals"><div class="schedule-heading"><div><strong>第三方車站到站觀測</strong><small>OpenData.vip · 車站倒數，不代表列車 GPS 位置</small></div><span class="estimated">ESTIMATED</span></div><div class="station-picker"><div class="picker-label">路線</div><div class="line-picker"><button v-for="line in lineFilters" :key="line.id" type="button" class="line-filter" :class="{active:selectedLineId===line.id}" :style="{'--line-color':line.color}" @click="selectedLineId=line.id">{{line.name}}</button></div><div class="picker-label">車站 <span>{{selectedStation}}</span></div><div class="station-picker-grid"><button v-for="station in stationOptions" :key="station" type="button" class="station-choice" :class="{active:selectedStation===station}" @click="selectedStation=station">{{station}}</button></div><div class="picker-status">{{stationRequesting?'正在更新資料…':cooldownRemaining?`已快取，${cooldownRemaining} 秒內不重新讀取`:'可更新'}} · 每個站點獨立快取 60 秒</div></div><div class="schedule-table"><div v-for="departure in stationDepartures?.departures || []" :key="departure.id" class="schedule-row arrival-row"><b>{{departure.stationName}}</b><span>往 {{departure.destination}}</span><span>{{departure.status==='ARRIVING'?'列車進站':`約 ${departure.etaSeconds} 秒`}}</span><em class="estimated">ESTIMATED</em></div><p v-if="stationDepartures && !stationDepartures.departures.length">目前查詢車站沒有可顯示的到站觀測。</p><p v-if="!stationDepartures">正在取得 {{selectedStation}} 站資料…</p></div></section>
-  <section v-if="selected" class="detail">
-    <strong>{{selected.trainId}}</strong><span>{{selected.operator}} · {{selected.lineId}} · {{selected.trainType==='EXPRESS'?'直達車':'普通車'}}</span>
-    <span>{{selected.direction===0?'往終點':'往起點'}} · {{selected.fromName}} → {{selected.toName}}</span><span>{{selected.status==='DWELLING'?'停靠中':'行駛中'}} · 進度 {{Math.round(selected.progress*100)}}%</span>
-    <span>預計抵達 {{formatSimulationTime(selected.arrivalSec)}}</span><span class="source" :class="selected.source.toLowerCase()">{{selected.source}}</span><small>更新 {{selected.updatedAt}}</small>
+  <section v-if="selectedTrain" class="detail">
+    <strong>{{selectedTrain.trainId}}</strong><span>{{selectedTrain.operator}} · {{selectedTrain.lineId}} · {{selectedTrain.trainType==='EXPRESS'?'直達車':'普通車'}}</span>
+    <span>{{selectedTrain.direction===0?'往終點':'往起點'}} · {{selectedTrain.fromName}} → {{selectedTrain.toName}}</span><span>{{selectedTrain.status==='DWELLING'?'停靠中':'行駛中'}} · 進度 {{Math.round(selectedTrain.progress*100)}}%</span>
+    <span>預計抵達 {{formatSimulationTime(selectedTrain.arrivalSec)}}</span><span class="source" :class="selectedTrain.source.toLowerCase()">{{selectedTrain.source}}</span><small>更新 {{selectedTrain.updatedAt}}</small>
   </section>
   <section class="legend"><span>資料狀態：LIVE 即時 · ESTIMATED 推估 · SCHEDULED 官方時刻表</span><span>{{demoEnabled?'開發展示模式：含 DEMO fallback':'嚴格官方資料模式：未取得官方班次時不顯示列車'}}</span></section>
 </main>
