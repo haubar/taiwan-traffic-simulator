@@ -97,6 +97,15 @@ h1 {
 .line-metric { display: grid; grid-template-columns: 4px 1fr auto; align-items: center; gap: 9px; color: #b5c4d6; font-size: 12px; }
 .line-swatch { width: 4px; height: 18px; border-radius: 4px; background: var(--line-color); }
 .line-metric b { color: #eef4fb; font-variant-numeric: tabular-nums; }
+.near-arrivals { margin-top: 15px; }
+.near-arrival-row { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; padding: 8px 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #dbe7f5; text-align: left; cursor: pointer; }
+.near-arrival-row:hover { border-color: #314b69; background: #152238; }
+.arrival-line-dot { width: 4px; height: 28px; border-radius: 4px; background: var(--line-color); }
+.arrival-info, .arrival-time { display: grid; gap: 3px; }
+.arrival-info b, .arrival-time b { font-size: 12px; }
+.arrival-info small, .arrival-time small { color: #8094aa; font-size: 10px; }
+.arrival-time { text-align: right; font-variant-numeric: tabular-nums; }
+.no-arrivals { margin: 4px 0; color: #8094aa; font-size: 12px; }
 .observation-summary { margin-top: 15px; }
 .observation-summary p { margin: 8px 0 4px; color: #b5c4d6; font-size: 12px; }
 .observation-summary small { color: #71869e; font-size: 10px; }

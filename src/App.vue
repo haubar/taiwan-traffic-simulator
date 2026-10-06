@@ -30,6 +30,10 @@ const dashboardStats = computed(() => {
   const observed = stationDepartures.value?.departures?.length || 0
   return { moving, dwelling: trains.length - moving, arrivalsSoon, byLine, observed }
 })
+const nearStationArrivals = computed(() => activeTrains.value
+  .filter((train) => train.arrivalSec >= simSec.value && train.arrivalSec <= simSec.value + 300)
+  .sort((a, b) => a.arrivalSec - b.arrivalSec)
+  .slice(0, 5))
 const stationDepartures = ref(null)
 const selectedStation = ref('中山')
 const selectedLineId = ref('ALL')
@@ -100,6 +104,10 @@ onBeforeUnmount(() => { if (cacheTimer.value) window.clearInterval(cacheTimer.va
       </div>
       <div class="dashboard-section"><div class="dashboard-section-title"><strong>各路線運行列車</strong><span>{{lines.length}} 條路線</span></div>
         <div class="line-metrics"><div v-for="line in dashboardStats.byLine" :key="line.id" class="line-metric"><span class="line-swatch" :style="{'--line-color':line.color}"></span><span>{{line.name}}</span><b>{{line.count}}</b></div></div>
+      </div>
+      <div class="dashboard-section near-arrivals"><div class="dashboard-section-title"><strong>即將抵達站點</strong><span>5 分鐘內</span></div>
+        <button v-for="train in nearStationArrivals" :key="train.id" class="near-arrival-row" type="button" @click="selectTrain(train)"><span class="arrival-line-dot" :style="{'--line-color':lines.find(line=>line.id===train.lineId)?.color || '#8bc5ff'}"></span><span class="arrival-info"><b>{{train.toName}}</b><small>{{train.lineId}} · {{train.trainId}}</small></span><span class="arrival-time"><b>{{formatSimulationTime(train.arrivalSec)}}</b><small>{{Math.max(0, Math.ceil(train.arrivalSec-simSec))}} 秒後</small></span></button>
+        <p v-if="!nearStationArrivals.length" class="no-arrivals">目前沒有五分鐘內抵達的列車</p>
       </div>
       <div class="dashboard-section observation-summary"><div class="dashboard-section-title"><strong>車站到站觀測</strong><span class="estimated">ESTIMATED</span></div><p>{{stationRequesting?'正在更新觀測資料…':`${selectedStation}站目前有 ${dashboardStats.observed} 筆到站觀測`}}</p><small>{{stationDepartures?.updatedAt ? `資料更新 ${stationDepartures.updatedAt}` : '尚無觀測資料'}}</small></div>
     </aside>
