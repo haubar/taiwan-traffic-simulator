@@ -8,6 +8,7 @@ import SolarIndicator from './SolarIndicator.vue'
 const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, daylight: { type: Number, default: 1 }, sunrise: String, sunset: String, simSec: { type: Number, default: 0 } })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
+const stationNamesVisible = ref(false)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
 let stationLabels = []
@@ -565,8 +566,7 @@ const animate = () => {
     mesh.position.y = palette.routeSurfaceHeight - wheelBottom + Math.sin(performance.now() / 170 + mesh.position.x) * 0.006
   })
   const focus = trainMeshes.get(props.selectedTrain?.trainId || props.selectedTrain?.id) || trainMeshes.get(props.trains[0]?.trainId || props.trains[0]?.id)
-  const showStationLabels = camera.position.distanceTo(controls.target) < 16
-  stationLabels.forEach((label) => { label.visible = showStationLabels })
+  stationLabels.forEach((label) => { label.visible = stationNamesVisible.value })
   if ((props.journeyMode === 'follow' || props.journeyMode === 'cab') && focus) {
     const direction = focus.userData.direction || new THREE.Vector3(1, 0, 0)
     if (props.journeyMode === 'cab') {
@@ -695,7 +695,7 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
     <div class="map-caption">
       <div><strong>{{ journeyMode === 'cab' ? '車內行進視角' : journeyMode === 'follow' ? '列車跟車視角' : '3D 地圖總覽' }}</strong><div class="route-legend"><span v-for="line in lines" :key="line.id"><i :style="{background:line.color}"></i>{{line.id}}</span></div></div>
       <SolarIndicator :daylight="daylight" :sunrise="sunrise" :sunset="sunset" />
-      <span><small>{{ journeyMode === 'cab' ? '鏡頭位於列車前端 · 朝行車方向觀察' : journeyMode === 'follow' ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span>
+      <span><small>{{ journeyMode === 'cab' ? '鏡頭位於列車前端 · 朝行車方向觀察' : journeyMode === 'follow' ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="station-name-toggle" :class="{ active: stationNamesVisible }" type="button" :aria-pressed="stationNamesVisible" @click="stationNamesVisible = !stationNamesVisible">{{ stationNamesVisible ? '隱藏站名' : '顯示站名' }}</button><button class="reset-view" type="button" @click="resetView">重置視角</button></span>
     </div>
     <div ref="viewport" class="three-viewport"></div>
     <div class="map-attribution">地理位置依車站座標投影 · 建築為示意模型 · 列車位置非 LIVE GPS</div>
@@ -710,6 +710,8 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
 .route-legend span { display: inline-flex; align-items: center; gap: 4px; color: #526777; font-size: 10px; }
 .route-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px #62778955; }
 .reset-view { margin-left: 10px; border: 1px solid #aebdca; border-radius: 6px; padding: 4px 8px; color: #334c60; background: #f7fafc; cursor: pointer; }
+.station-name-toggle { margin-left: 10px; border: 1px solid #aebdca; border-radius: 6px; padding: 4px 8px; color: #334c60; background: #f7fafc; cursor: pointer; }
+.station-name-toggle.active { border-color: #3975aa; background: #e4f2ff; color: #174c7b; }
 .three-viewport { height: 520px; cursor: grab; }
 .three-viewport:active { cursor: grabbing; }
 .map-attribution { padding: 5px 10px 8px; color: #657b8d; font-size: 10px; }
