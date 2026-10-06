@@ -133,8 +133,11 @@ const addDioramaCity = () => {
     const texture = new THREE.CanvasTexture(facadeCanvas)
     texture.colorSpace = THREE.SRGBColorSpace
     texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
-    const facadeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, roughness: 0.76, vertexColors: true })
-    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, vertexColors: true })
+    // InstancedMesh applies each building's instanceColor automatically. Enabling
+    // vertexColors here also requires a geometry color attribute, which BoxGeometry
+    // does not have and can make the facade render black in some Three.js versions.
+    const facadeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, roughness: 0.76 })
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88 })
     const materials = [facadeMaterial, facadeMaterial, roofMaterial, roofMaterial, facadeMaterial, facadeMaterial]
     const mesh = new THREE.InstancedMesh(buildingGeometry, materials, buildingCapacity)
     mesh.castShadow = true
@@ -226,11 +229,16 @@ const addMapBase = () => addDioramaCity()
 const addRoutes = () => {
   props.lines.forEach((line) => {
     const points = line.stations.map((station) => world(station.x, station.y).setY(0.08))
+    const colorPoints = line.stations.map((station) => world(station.x, station.y).setY(0.2))
     const routeColor = line.color
     const route = new THREE.CurvePath()
+    const colorRoute = new THREE.CurvePath()
     points.slice(1).forEach((point, index) => route.add(new THREE.LineCurve3(points[index], point)))
+    colorPoints.slice(1).forEach((point, index) => colorRoute.add(new THREE.LineCurve3(colorPoints[index], point)))
     scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, palette.routeBedWidth, 8, false), new THREE.MeshBasicMaterial({ color: palette.routeBed, toneMapped: false })))
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, palette.routeWidth, 8, false), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false })))
+    const coloredRail = new THREE.Mesh(new THREE.TubeGeometry(colorRoute, colorPoints.length * 2, palette.routeWidth, 8, false), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false }))
+    coloredRail.renderOrder = 1
+    scene.add(coloredRail)
     line.stations.forEach((station) => {
       const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.09, 12), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false }))
       const position = world(station.x, station.y)
@@ -373,6 +381,12 @@ const syncTrains = () => {
     let mesh = trainMeshes.get(train.id)
     if (!mesh) { mesh = createTrainMesh(train); scene.add(mesh); trainMeshes.set(train.id, mesh) }
     mesh.userData.target = world(train.x, train.y)
+    // Place newly appearing trains directly on their current track position;
+    // easing from the scene origin looks like a sudden cross-map jump.
+    if (!mesh.userData.positionInitialized) {
+      mesh.position.copy(mesh.userData.target)
+      mesh.userData.positionInitialized = true
+    }
     const line = props.lines.find((candidate) => candidate.id === train.lineId)
     const from = line?.stations.find((station) => station.id === train.fromStation)
     const to = line?.stations.find((station) => station.id === train.toStation)
@@ -397,7 +411,10 @@ const animate = () => {
   animationFrame = requestAnimationFrame(animate)
   trainMeshes.forEach((mesh) => {
     if (!mesh.userData.target) return
-    mesh.position.lerp(mesh.userData.target, 0.16)
+    // Simulation time advances every animation frame, so train.x/y already
+    // interpolate between stations. Following that sampled position directly
+    // keeps motion on the route without accumulating easing lag.
+    mesh.position.copy(mesh.userData.target)
     mesh.rotation.y = mesh.userData.heading || 0
     mesh.position.y = 0.05 + Math.sin(performance.now() / 170 + mesh.position.x) * 0.015
   })
