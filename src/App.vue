@@ -89,9 +89,29 @@ onBeforeUnmount(() => { if (cacheTimer.value) window.clearInterval(cacheTimer.va
 <main class="app-shell">
   <header><div><p class="eyebrow">NORTHERN TAIWAN TRAFFIC DIGITAL TWIN</p><h1>台北捷運交通模擬器</h1><p class="sub">北部捷運路網：北捷四主線 + 板南線 + 桃園機場捷運 + 新北環狀線</p></div><div class="clock"><span class="live-dot"></span>{{formatSimulationTime(simSec)}}</div></header>
   <section class="toolbar">
-    <button @click="setNow">現在</button><button @click="playing=!playing">{{playing?'暫停':'播放'}}</button>
-    <button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" @click="speed=v">{{v}}x</button><button :class="{active:viewMode==='scene'}" @click="viewMode=viewMode==='scene'?'flat':'scene'">{{viewMode==='scene'?'平面圖':'情境行進'}}</button><button :class="{active:viewMode==='3d'}" @click="viewMode=viewMode==='3d'?'flat':'3d'">{{viewMode==='3d'?'平面圖':'3D 地圖'}}</button><template v-if="viewMode==='3d'"><button :class="{active:journeyMode==='overview'}" @click="journeyMode='overview'">總覽</button><button :class="{active:journeyMode==='follow'}" @click="journeyMode='follow'">跟車旅程</button><button :class="{active:journeyMode==='cab'}" @click="journeyMode='cab'">車內視角</button></template>
-    <span class="count">運行中 {{activeTrains.length}} 列</span><button class="dashboard-toggle" :class="{active:dashboardOpen}" @click="dashboardOpen=!dashboardOpen">{{dashboardOpen?'收合即時儀表板':'開啟即時儀表板'}}</button>
+    <div class="toolbar-group" role="group" aria-label="模擬控制">
+      <span class="toolbar-group-label">模擬</span>
+      <button @click="setNow">現在</button>
+      <button @click="playing=!playing">{{playing?'暫停':'播放'}}</button>
+      <div class="segmented-control" role="group" aria-label="播放速度"><button v-for="v in [1,5,20]" :key="v" :class="{active:speed===v}" :aria-pressed="speed===v" @click="speed=v">{{v}}×</button></div>
+    </div>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <div class="toolbar-group" role="group" aria-label="地圖視圖">
+      <span class="toolbar-group-label">視圖</span>
+      <div class="segmented-control view-switcher" role="group" aria-label="選擇地圖視圖">
+        <button :class="{active:viewMode==='flat'}" :aria-pressed="viewMode==='flat'" @click="viewMode='flat'">平面圖</button>
+        <button :class="{active:viewMode==='3d'}" :aria-pressed="viewMode==='3d'" @click="viewMode='3d'">3D 地圖</button>
+        <button :class="{active:viewMode==='scene'}" :aria-pressed="viewMode==='scene'" @click="viewMode='scene'">情境行進</button>
+      </div>
+    </div>
+    <template v-if="viewMode==='3d'">
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <div class="toolbar-group" role="group" aria-label="3D 相機視角">
+        <span class="toolbar-group-label">3D 視角</span>
+        <div class="segmented-control"><button :class="{active:journeyMode==='overview'}" :aria-pressed="journeyMode==='overview'" @click="journeyMode='overview'">總覽</button><button :class="{active:journeyMode==='follow'}" :aria-pressed="journeyMode==='follow'" @click="journeyMode='follow'">跟車</button><button :class="{active:journeyMode==='cab'}" :aria-pressed="journeyMode==='cab'" @click="journeyMode='cab'">車內</button></div>
+      </div>
+    </template>
+    <div class="toolbar-meta"><span class="count">運行中 {{activeTrains.length}} 列</span><button class="dashboard-toggle" :class="{active:dashboardOpen}" :aria-expanded="dashboardOpen" @click="dashboardOpen=!dashboardOpen">{{dashboardOpen?'收合儀表板':'開啟儀表板'}}</button></div>
   </section>
   <section class="map-dashboard-layout" :class="{'dashboard-hidden':!dashboardOpen}">
     <div class="map-column"><ThreeRailMap v-if="viewMode==='3d'" :key="journeyMode" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" :sim-sec="simSec" @select="selectTrain"/><ScenarioScene v-else-if="viewMode==='scene'" :lines="lines" :trains="activeTrains" :selected-train="selected" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selectTrain"/></div>
