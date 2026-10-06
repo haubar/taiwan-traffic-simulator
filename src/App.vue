@@ -94,7 +94,7 @@ onBeforeUnmount(() => { if (cacheTimer.value) window.clearInterval(cacheTimer.va
     <span class="count">運行中 {{activeTrains.length}} 列</span><button class="dashboard-toggle" :class="{active:dashboardOpen}" @click="dashboardOpen=!dashboardOpen">{{dashboardOpen?'收合即時儀表板':'開啟即時儀表板'}}</button>
   </section>
   <section class="map-dashboard-layout" :class="{'dashboard-hidden':!dashboardOpen}">
-    <div class="map-column"><ThreeRailMap v-if="viewMode==='3d'" :key="journeyMode" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" @select="selectTrain"/><ScenarioScene v-else-if="viewMode==='scene'" :lines="lines" :trains="activeTrains" :selected-train="selected" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selectTrain"/></div>
+    <div class="map-column"><ThreeRailMap v-if="viewMode==='3d'" :key="journeyMode" :lines="lines" :trains="activeTrains" :selected-train="selected" :journey-mode="journeyMode" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" :sim-sec="simSec" @select="selectTrain"/><ScenarioScene v-else-if="viewMode==='scene'" :lines="lines" :trains="activeTrains" :selected-train="selected" :daylight="daylight" :sunrise="sunrise" :sunset="sunset" @select="selected=$event"/><RailMap v-else :lines="lines" :trains="activeTrains" :selected-train="selected" @select="selectTrain"/></div>
     <aside v-if="dashboardOpen" class="live-dashboard" aria-label="即時交通儀表板">
       <div class="dashboard-heading"><div><span class="live-dot"></span><strong>即時儀表板</strong></div><small>隨模擬時間更新</small></div>
       <div class="metric-grid">

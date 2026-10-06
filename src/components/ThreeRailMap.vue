@@ -5,13 +5,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import sceneConfig from '../data/3dSceneConfig.json' with { type: 'json' }
 import SolarIndicator from './SolarIndicator.vue'
 
-const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, daylight: { type: Number, default: 1 }, sunrise: String, sunset: String })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, daylight: { type: Number, default: 1 }, sunrise: String, sunset: String, simSec: { type: Number, default: 0 } })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
 let stationLabels = []
 let hemisphereLight, sunLight, moonLight
+let sunSprite, moonSprite
 const nightBackground = new THREE.Color('#081321')
 const dayBackground = new THREE.Color(sceneConfig.diorama.background)
 const frameBackground = new THREE.Color()
@@ -66,6 +67,68 @@ const createStationLabel = (name, color) => {
   label.scale.set(0.72, 0.18, 1)
   label.renderOrder = 3
   return label
+}
+
+const createCelestialSprite = (kind) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 128
+  const context = canvas.getContext('2d')
+  if (kind === 'sun') {
+    const glow = context.createRadialGradient(64, 64, 14, 64, 64, 62)
+    glow.addColorStop(0, 'rgba(255,244,190,1)')
+    glow.addColorStop(0.32, 'rgba(255,215,112,0.94)')
+    glow.addColorStop(0.64, 'rgba(255,179,65,0.3)')
+    glow.addColorStop(1, 'rgba(255,179,65,0)')
+    context.fillStyle = glow
+    context.fillRect(0, 0, 128, 128)
+    context.beginPath()
+    context.arc(64, 64, 25, 0, Math.PI * 2)
+    context.fillStyle = '#fff1a8'
+    context.fill()
+  } else {
+    context.beginPath()
+    context.arc(64, 64, 39, 0, Math.PI * 2)
+    context.fillStyle = '#eef4ff'
+    context.fill()
+    context.globalCompositeOperation = 'destination-out'
+    context.beginPath()
+    context.arc(83, 47, 35, 0, Math.PI * 2)
+    context.fill()
+    context.globalCompositeOperation = 'source-over'
+    context.shadowColor = '#c7d9ff'
+    context.shadowBlur = 12
+    context.strokeStyle = 'rgba(218,230,255,0.85)'
+    context.lineWidth = 3
+    context.beginPath()
+    context.arc(64, 64, 38, -1.08, 1.08)
+    context.stroke()
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }))
+  sprite.scale.setScalar(sceneConfig.diorama.celestialSize)
+  sprite.renderOrder = 10
+  return sprite
+}
+
+const updateCelestialBodies = () => {
+  if (!sunSprite || !moonSprite) return
+  const minute = (((props.simSec % 86400) + 86400) % 86400) / 60
+  const rise = (Number(props.sunrise?.slice(0, 2)) || 0) * 60 + (Number(props.sunrise?.slice(3, 5)) || 0)
+  const set = (Number(props.sunset?.slice(0, 2)) || 0) * 60 + (Number(props.sunset?.slice(3, 5)) || 0)
+  const dayLength = Math.max(1, set - rise)
+  const dayProgress = THREE.MathUtils.clamp((minute - rise) / dayLength, 0, 1)
+  const nightProgress = THREE.MathUtils.clamp((minute >= set ? minute - set : minute + 1440 - set) / (1440 - dayLength), 0, 1)
+  const radius = palette.celestialArcRadiusX
+  const sunPosition = new THREE.Vector3(-radius + 2 * radius * dayProgress, palette.celestialBaseHeight + Math.sin(dayProgress * Math.PI) * palette.celestialArcHeight, palette.celestialDepth)
+  const moonPosition = new THREE.Vector3(radius - 2 * radius * nightProgress, palette.celestialBaseHeight + Math.sin(nightProgress * Math.PI) * palette.celestialArcHeight, palette.celestialDepth)
+  sunSprite.position.copy(sunPosition)
+  moonSprite.position.copy(moonPosition)
+  sunLight?.position.copy(sunPosition)
+  moonLight?.position.copy(moonPosition)
+  sunSprite.visible = props.daylight > 0.02
+  moonSprite.visible = props.daylight < 0.98
 }
 
 const distanceToSegment = (point, start, end) => {
@@ -490,6 +553,7 @@ const animate = () => {
   if (hemisphereLight) hemisphereLight.intensity = 0.38 + palette.hemisphereIntensity * dayAmount
   if (sunLight) sunLight.intensity = palette.sunIntensity * dayAmount
   if (moonLight) moonLight.intensity = 0.35 * (1 - dayAmount)
+  updateCelestialBodies()
   trainMeshes.forEach((mesh) => {
     if (!mesh.userData.target) return
     // Simulation time advances every animation frame, so train.x/y already
@@ -615,6 +679,9 @@ onMounted(() => {
   moonLight = new THREE.DirectionalLight(0xb9d5ff, 0)
   moonLight.position.set(8, 8, -9)
   scene.add(moonLight)
+  sunSprite = createCelestialSprite('sun')
+  moonSprite = createCelestialSprite('moon')
+  scene.add(sunSprite, moonSprite)
   addMapBase(); stationLabels = addRoutes(); syncTrains(); animate()
   window.addEventListener('resize', resize)
 })
