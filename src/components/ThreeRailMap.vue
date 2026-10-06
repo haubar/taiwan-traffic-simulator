@@ -5,14 +5,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import sceneConfig from '../data/3dSceneConfig.json' with { type: 'json' }
 
-const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, visualStyle: String })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
 let hoveredTrainId = null
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
-const cute = () => props.visualStyle === 'cute'
 const palette = sceneConfig.diorama
 
 const distanceToSegment = (point, start, end) => {
@@ -92,12 +91,42 @@ const addDioramaCity = () => {
     end: world(station.x, station.y)
   })))
   const buildingCapacity = columns * rows
+  const facadeCanvas = document.createElement('canvas')
+  facadeCanvas.width = 128
+  facadeCanvas.height = 128
+  const facadeContext = facadeCanvas.getContext('2d')
+  facadeContext.fillStyle = '#dce5eb'
+  facadeContext.fillRect(0, 0, 128, 128)
+  facadeContext.strokeStyle = '#c4d0d8'
+  facadeContext.lineWidth = 2
+  for (let floor = 0; floor <= 5; floor += 1) {
+    const y = 7 + floor * 23
+    facadeContext.beginPath()
+    facadeContext.moveTo(0, y)
+    facadeContext.lineTo(128, y)
+    facadeContext.stroke()
+  }
+  for (let floor = 0; floor < 5; floor += 1) for (let bay = 0; bay < 4; bay += 1) {
+    const x = 8 + bay * 30
+    const y = 12 + floor * 23
+    facadeContext.fillStyle = floor % 3 === 0 ? '#7599ae' : '#88a9bb'
+    facadeContext.fillRect(x, y, 17, 13)
+    facadeContext.fillStyle = '#d7e6ec'
+    facadeContext.fillRect(x + 7, y, 2, 13)
+  }
+  const facadeTexture = new THREE.CanvasTexture(facadeCanvas)
+  facadeTexture.colorSpace = THREE.SRGBColorSpace
+  facadeTexture.anisotropy = renderer.capabilities.getMaxAnisotropy()
   const buildingGeometry = new THREE.BoxGeometry(1, 1, 1)
-  const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, vertexColors: true })
-  const buildings = new THREE.InstancedMesh(buildingGeometry, buildingMaterial, buildingCapacity)
+  const facadeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, map: facadeTexture, roughness: 0.8, vertexColors: true })
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, vertexColors: true })
+  const buildingMaterials = [facadeMaterial, facadeMaterial, roofMaterial, roofMaterial, facadeMaterial, facadeMaterial]
+  const buildings = new THREE.InstancedMesh(buildingGeometry, buildingMaterials, buildingCapacity)
+  const rooftopEquipment = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xc6d0d8, roughness: 0.88 }), buildingCapacity)
   const dummy = new THREE.Object3D()
   const color = new THREE.Color()
   let buildingIndex = 0
+  let rooftopIndex = 0
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
       const x = (column - (columns - 1) / 2) * spacing
@@ -108,20 +137,31 @@ const addDioramaCity = () => {
       if (routeSegments.some(({ start, end }) => distanceToSegment({ x, z }, start, end) < palette.routeClearance)) continue
       const width = 0.28 + noise * 0.2
       const depth = 0.28 + ((noise * 17.3) % 1) * 0.2
-      const height = 0.22 + ((noise * 29.7) % 1) * 0.9
+      const height = noise > 0.72 ? 0.62 + ((noise * 29.7) % 1) * 0.8 : 0.24 + ((noise * 29.7) % 1) * 0.48
       dummy.position.set(x, -0.2 + height / 2, z)
       dummy.scale.set(width, height, depth)
       dummy.updateMatrix()
       buildings.setMatrixAt(buildingIndex, dummy.matrix)
       color.set(palette.buildingColors[Math.floor(noise * palette.buildingColors.length)])
       buildings.setColorAt(buildingIndex, color)
+      if (noise > 0.68) {
+        const equipmentWidth = 0.1 + noise * 0.035
+        dummy.position.set(x + width * 0.12, -0.2 + height + 0.045, z)
+        dummy.scale.set(equipmentWidth, 0.09, equipmentWidth)
+        dummy.updateMatrix()
+        rooftopEquipment.setMatrixAt(rooftopIndex, dummy.matrix)
+        rooftopIndex += 1
+      }
       buildingIndex += 1
     }
   }
   buildings.count = buildingIndex
   buildings.castShadow = true
   buildings.receiveShadow = true
+  rooftopEquipment.count = rooftopIndex
+  rooftopEquipment.castShadow = true
   scene.add(buildings)
+  scene.add(rooftopEquipment)
 
   const treePositions = [[-9, -3.9], [-7.5, 3.9], [-4.5, -3.9], [-1.5, 3.9], [2, -3.9], [5, 3.9], [8, -3.9], [9.6, 2.8]]
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.05, 0.2, 7), new THREE.MeshStandardMaterial({ color: palette.treeTrunk }), treePositions.length)
@@ -142,61 +182,23 @@ const addDioramaCity = () => {
   scene.add(trunks, crowns)
 }
 
-const addMapBase = () => {
-  if (cute()) {
-    addDioramaCity()
-    return
-  }
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(23, 0.25, 11), new THREE.MeshStandardMaterial({ color: cute() ? 0xa7d8c8 : 0x172d43, roughness: cute() ? 0.7 : 0.9 }))
-  ground.position.y = -0.35
-  scene.add(ground)
-  const grid = new THREE.GridHelper(23, 23, 0x4f7791, 0x29485f)
-  grid.position.y = -0.2
-  grid.material.transparent = true
-  grid.material.opacity = cute() ? 0.15 : 0.35
-  scene.add(grid)
-  const mapPlane = new THREE.Mesh(new THREE.PlaneGeometry(23, 11), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: cute() ? 0.16 : 0.72 }))
-  mapPlane.rotation.x = -Math.PI / 2
-  mapPlane.position.y = -0.17
-  scene.add(mapPlane)
-  new THREE.TextureLoader().load('https://tile.openstreetmap.org/8/171/112.png', (texture) => {
-    texture.colorSpace = THREE.SRGBColorSpace
-    mapPlane.material.map = texture
-    mapPlane.material.needsUpdate = true
-  }, undefined, () => { mapPlane.material.opacity = 0 })
-  for (let i = 0; i < 18; i += 1) {
-    const block = new THREE.Mesh(new THREE.BoxGeometry(0.7 + (i % 4) * 0.35, 0.3 + (i % 4) * 0.18, 0.45 + (i % 3) * 0.25), new THREE.MeshStandardMaterial({ color: cute() ? (i % 2 ? 0xffc9a9 : 0xffe3a6) : (i % 2 ? 0x274761 : 0x315975), roughness: cute() ? 0.55 : 0.85 }))
-    block.position.set(-10 + (i * 3.1) % 20, block.geometry.parameters.height / 2 - 0.2, -4.3 + (i * 1.7) % 8)
-    scene.add(block)
-    if (cute() && i % 2 === 0) {
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.24, 8), new THREE.MeshStandardMaterial({ color: 0x9a6844 }))
-      trunk.position.set(block.position.x + 0.5, 0.06, block.position.z)
-      const crown = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), new THREE.MeshStandardMaterial({ color: i % 4 ? 0x70c783 : 0x82bdf2 }))
-      crown.position.set(trunk.position.x, 0.28, trunk.position.z)
-      scene.add(trunk, crown)
-    }
-  }
-}
+const addMapBase = () => addDioramaCity()
 
 const addRoutes = () => {
   props.lines.forEach((line) => {
     const points = line.stations.map((station) => world(station.x, station.y).setY(0.08))
-    const routeColor = cute() ? new THREE.Color(line.color).lerp(new THREE.Color(0xffffff), 0.28) : line.color
-    if (cute()) {
-      const route = new THREE.CurvePath()
-      points.slice(1).forEach((point, index) => route.add(new THREE.LineCurve3(points[index], point)))
-      scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.09, 7, false), new THREE.MeshStandardMaterial({ color: palette.routeBed, roughness: 0.8 })))
-      scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.038, 6, false), new THREE.MeshStandardMaterial({ color: routeColor, roughness: 0.65, emissive: routeColor, emissiveIntensity: 0.06 })))
-    } else {
-      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: routeColor })))
-    }
+    const routeColor = line.color
+    const route = new THREE.CurvePath()
+    points.slice(1).forEach((point, index) => route.add(new THREE.LineCurve3(points[index], point)))
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.09, 7, false), new THREE.MeshStandardMaterial({ color: palette.routeBed, roughness: 0.82 })))
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.045, 7, false), new THREE.MeshStandardMaterial({ color: routeColor, roughness: 0.5, emissive: routeColor, emissiveIntensity: 0.1 })))
     line.stations.forEach((station) => {
-      const marker = new THREE.Mesh(new THREE.CylinderGeometry(cute() ? 0.11 : 0.1, cute() ? 0.11 : 0.1, cute() ? 0.09 : 0.18, 12), new THREE.MeshStandardMaterial({ color: cute() ? palette.station : routeColor, emissive: routeColor, emissiveIntensity: cute() ? 0.04 : 0.25 }))
+      const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.09, 12), new THREE.MeshStandardMaterial({ color: routeColor, emissive: routeColor, emissiveIntensity: 0.08 }))
       const position = world(station.x, station.y)
-      marker.position.set(position.x, cute() ? 0.14 : 0.2, position.z)
+      marker.position.set(position.x, 0.14, position.z)
       scene.add(marker)
-      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.28 : 0.34, cute() ? 0.12 : 0.22, cute() ? 0.28 : 0.34), new THREE.MeshStandardMaterial({ color: cute() ? 0xffffff : 0xe5edf4, roughness: cute() ? 0.72 : 0.7 }))
-      stationBuilding.position.set(position.x, cute() ? 0.23 : 0.12, position.z)
+      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.28), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72 }))
+      stationBuilding.position.set(position.x, 0.23, position.z)
       stationBuilding.castShadow = true
       scene.add(stationBuilding)
     })
@@ -206,106 +208,80 @@ const addRoutes = () => {
 const createTrainMesh = (train) => {
   const color = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
   const group = new THREE.Group()
-  if (cute()) {
-    const shellMaterial = new THREE.MeshStandardMaterial({ color: 0xfafcff, roughness: 0.42, metalness: 0.05 })
-    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xe4edf5, roughness: 0.72 })
-    const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x31536e, roughness: 0.24, metalness: 0.15 })
-    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0xd5e0e9, roughness: 0.56 })
-    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x283947, roughness: 0.82 })
-    const stripeMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.4 })
-    const carGeometry = new RoundedBoxGeometry(0.3, 0.3, 0.34, 3, 0.035)
-    const roofGeometry = new RoundedBoxGeometry(0.26, 0.045, 0.29, 2, 0.018)
-    const carCenters = [-0.31, 0, 0.31]
-    carCenters.forEach((center) => {
-      const car = new THREE.Mesh(carGeometry, shellMaterial)
-      car.position.set(center, 0.31, 0)
-      car.castShadow = true
-      car.receiveShadow = true
-      group.add(car)
-      const roof = new THREE.Mesh(roofGeometry, roofMaterial)
-      roof.position.set(center, 0.475, 0)
-      group.add(roof)
-      for (const side of [-1, 1]) {
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.055, 0.012), stripeMaterial)
-        stripe.position.set(center, 0.215, side * 0.173)
-        group.add(stripe)
-        for (const offset of [-0.075, 0.075]) {
-          const window = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.09, 0.012), windowMaterial)
-          window.position.set(center + offset, 0.365, side * 0.173)
-          group.add(window)
-        }
-        const door = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.17, 0.014), doorMaterial)
-        door.position.set(center + 0.12, 0.31, side * 0.173)
-        group.add(door)
-      }
-      for (const offset of [-0.1, 0.1]) for (const side of [-1, 1]) {
-        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.043, 0.036, 10), wheelMaterial)
-        wheel.rotation.x = Math.PI / 2
-        wheel.position.set(center + offset, 0.16, side * 0.15)
-        group.add(wheel)
-      }
-      const airConditioner = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.045, 0.11), roofMaterial)
-      airConditioner.position.set(center, 0.52, 0)
-      group.add(airConditioner)
-    })
-    for (const center of [-0.155, 0.155]) {
-      const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.055, 0.07), wheelMaterial)
-      coupler.position.set(center, 0.255, 0)
-      group.add(coupler)
-    }
-    const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.13, 0.24), windowMaterial)
-    windshield.position.set(0.466, 0.365, 0)
-    group.add(windshield)
-    for (const side of [-1, 1]) {
-      const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.035, 0.035), new THREE.MeshBasicMaterial({ color: 0xfff3c1 }))
-      headlight.position.set(0.466, 0.235, side * 0.105)
-      group.add(headlight)
-    }
-    const labelCanvas = document.createElement('canvas')
-    labelCanvas.width = 256
-    labelCanvas.height = 56
-    const context = labelCanvas.getContext('2d')
-    context.fillStyle = '#ffffff'
-    context.fillRect(1, 1, 254, 54)
-    context.fillStyle = color
-    context.fillRect(1, 1, 7, 54)
-    context.fillStyle = '#20384e'
-    context.font = 'bold 24px system-ui, sans-serif'
-    context.textBaseline = 'middle'
-    context.fillText(train.trainId, 18, 28)
-    const labelTexture = new THREE.CanvasTexture(labelCanvas)
-    labelTexture.colorSpace = THREE.SRGBColorSpace
-    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false }))
-    label.scale.set(1.15, 0.25, 1)
-    label.position.set(0, 0.88, 0)
-    label.visible = false
-    group.add(label)
-    group.userData.label = label
-    return group
-  }
-  const body = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.78 : 0.62, cute() ? 0.3 : 0.22, cute() ? 0.34 : 0.2), new THREE.MeshStandardMaterial({ color: cute() ? 0xfafcff : train.trainType === 'EXPRESS' ? 0xe5a83b : color, metalness: cute() ? 0.02 : 0.25, roughness: cute() ? 0.48 : 0.35 }))
-  body.position.y = cute() ? 0.33 : 0.28
+  const shellMaterial = new THREE.MeshStandardMaterial({ color: 0xe7ebee, roughness: 0.34, metalness: 0.32 })
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c1c8, roughness: 0.75, metalness: 0.14 })
+  const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x253b4c, roughness: 0.2, metalness: 0.22 })
+  const stripeMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.44, metalness: 0.12 })
+  const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x29333b, roughness: 0.82 })
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.94, 0.34, 0.36, 4, 0.045), shellMaterial)
+  body.position.y = 0.34
   body.castShadow = true
+  body.receiveShadow = true
   group.add(body)
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.54 : 0.48, cute() ? 0.045 : 0.06, cute() ? 0.3 : 0.17), new THREE.MeshStandardMaterial({ color: cute() ? 0xe7eff7 : 0xe7f4ff }))
-  roof.position.y = cute() ? 0.49 : 0.43
-  group.add(roof)
-  if (cute()) {
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.07, 0.012), new THREE.MeshStandardMaterial({ color, roughness: 0.45 }))
-    stripe.position.set(0, 0.29, 0.176)
+
+  for (const side of [-1, 1]) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.065, 0.012), stripeMaterial)
+    stripe.position.set(0, 0.225, side * 0.183)
     group.add(stripe)
-    for (const x of [-0.25, 0.25]) for (const z of [-0.145, 0.145]) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.035, 10), new THREE.MeshStandardMaterial({ color: 0x364657, roughness: 0.8 }))
+    for (const x of [-0.34, -0.23, -0.08, 0.08, 0.23, 0.34]) {
+      const window = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.11, 0.014), windowMaterial)
+      window.position.set(x, 0.385, side * 0.183)
+      group.add(window)
+    }
+    for (const x of [-0.155, 0.155]) {
+      const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.19, 0.018), roofMaterial)
+      doorFrame.position.set(x, 0.33, side * 0.184)
+      group.add(doorFrame)
+      const doorGlass = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.105, 0.019), windowMaterial)
+      doorGlass.position.set(x, 0.365, side * 0.185)
+      group.add(doorGlass)
+    }
+    for (const x of [-0.29, 0, 0.29]) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.28, 0.014), darkMaterial)
+      seam.position.set(x, 0.34, side * 0.184)
+      group.add(seam)
+    }
+    for (const x of [-0.31, 0, 0.31]) for (const offset of [-0.105, 0.105]) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.04, 12), darkMaterial)
       wheel.rotation.x = Math.PI / 2
-      wheel.position.set(x, 0.19, z)
+      wheel.position.set(x + offset, 0.16, side * 0.16)
       group.add(wheel)
     }
   }
-  for (const x of [-0.2, 0, 0.2]) {
-    const window = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.14 : 0.12, cute() ? 0.09 : 0.07, 0.012), new THREE.MeshBasicMaterial({ color: 0x29465d }))
-    window.position.set(x, cute() ? 0.37 : 0.31, cute() ? 0.176 : 0.107)
-    group.add(window)
+  for (const x of [-0.31, 0, 0.31]) {
+    const airConditioner = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.045, 0.14), roofMaterial)
+    airConditioner.position.set(x, 0.535, 0)
+    group.add(airConditioner)
   }
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.145, 0.25), windowMaterial)
+  windshield.position.set(0.474, 0.38, 0)
+  group.add(windshield)
+  for (const side of [-1, 1]) {
+    const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.04, 0.045), new THREE.MeshBasicMaterial({ color: 0xfff1bd }))
+    headlight.position.set(0.475, 0.235, side * 0.11)
+    group.add(headlight)
+  }
+
+  const labelCanvas = document.createElement('canvas')
+  labelCanvas.width = 256
+  labelCanvas.height = 56
+  const context = labelCanvas.getContext('2d')
+  context.fillStyle = '#ffffff'
+  context.fillRect(1, 1, 254, 54)
+  context.fillStyle = color
+  context.fillRect(1, 1, 7, 54)
+  context.fillStyle = '#20384e'
+  context.font = 'bold 24px system-ui, sans-serif'
+  context.textBaseline = 'middle'
+  context.fillText(train.trainId, 18, 28)
+  const labelTexture = new THREE.CanvasTexture(labelCanvas)
+  labelTexture.colorSpace = THREE.SRGBColorSpace
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false }))
+  label.scale.set(1.15, 0.25, 1)
+  label.position.set(0, 0.88, 0)
+  label.visible = false
+  group.add(label)
+  group.userData.label = label
   return group
 }
 
@@ -402,25 +378,21 @@ const hoverTrain = (event) => {
 
 const resetView = () => {
   controls.reset()
-  if (cute()) camera.position.set(...palette.cameraPosition)
-  else camera.position.set(0, 13, 15)
+  camera.position.set(...palette.cameraPosition)
   controls.target.set(0, 0, 0)
   controls.update()
 }
 
 onMounted(() => {
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(cute() ? palette.background : 0x0b1929)
+  scene.background = new THREE.Color(palette.background)
   camera = new THREE.PerspectiveCamera(42, viewport.value.clientWidth / viewport.value.clientHeight, 0.1, 100)
-  if (cute()) camera.position.set(...palette.cameraPosition)
-  else camera.position.set(0, 13, 15)
+  camera.position.set(...palette.cameraPosition)
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight)
-  if (cute()) {
-    renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.15
-  }
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.15
   renderer.shadowMap.enabled = true
   viewport.value.appendChild(renderer.domElement)
   raycaster = new THREE.Raycaster()
@@ -434,9 +406,9 @@ onMounted(() => {
   controls.maxDistance = 32
   controls.maxPolarAngle = Math.PI / 2.05
   controls.target.set(0, 0, 0)
-  scene.add(new THREE.HemisphereLight(cute() ? 0xffffff : 0xb8dcff, cute() ? 0x9badbd : 0x183047, cute() ? palette.hemisphereIntensity : 2.2))
-  const sun = new THREE.DirectionalLight(0xffffff, cute() ? palette.sunIntensity : 2.5)
-  sun.position.set(cute() ? -8 : -5, 12, cute() ? 9 : 7)
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x9badbd, palette.hemisphereIntensity))
+  const sun = new THREE.DirectionalLight(0xffffff, palette.sunIntensity)
+  sun.position.set(-8, 12, 9)
   sun.castShadow = true
   scene.add(sun)
   addMapBase(); addRoutes(); syncTrains(); animate()
@@ -448,16 +420,26 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
 </script>
 
 <template>
-  <div class="three-map-wrap"><div class="map-caption"><span>{{ journeyMode === 'cab' ? '車內行進視角' : journeyMode === 'follow' ? '列車跟車視角' : '3D 地圖總覽' }}</span><span><small>{{ journeyMode === 'cab' ? '鏡頭位於列車前端 · 朝行車方向觀察' : journeyMode === 'follow' ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span></div><div ref="viewport" class="three-viewport"></div><div class="map-attribution">地圖底圖 © OpenStreetMap contributors · 路線／車輛為模擬資料，非 LIVE GPS</div></div>
+  <div class="three-map-wrap">
+    <div class="map-caption">
+      <div><strong>{{ journeyMode === 'cab' ? '車內行進視角' : journeyMode === 'follow' ? '列車跟車視角' : '3D 地圖總覽' }}</strong><div class="route-legend"><span v-for="line in lines" :key="line.id"><i :style="{background:line.color}"></i>{{line.id}}</span></div></div>
+      <span><small>{{ journeyMode === 'cab' ? '鏡頭位於列車前端 · 朝行車方向觀察' : journeyMode === 'follow' ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span>
+    </div>
+    <div ref="viewport" class="three-viewport"></div>
+    <div class="map-attribution">地理位置依車站座標投影 · 建築為示意模型 · 列車位置非 LIVE GPS</div>
+  </div>
 </template>
 
 <style scoped>
-.three-map-wrap { overflow: hidden; background: #0b1929; border: 1px solid #29425e; border-radius: 18px; }
-.map-caption { display: flex; justify-content: space-between; padding: 10px 14px; color: #d7e5f5; font-weight: 700; }
-.map-caption small { color: #7790ad; font-weight: 400; }
-.reset-view { margin-left: 10px; border: 1px solid #3a5774; border-radius: 6px; padding: 4px 8px; color: #d9e8f6; background: #142943; cursor: pointer; }
+.three-map-wrap { overflow: hidden; background: #e2e9f0; border: 1px solid #b8c6d3; border-radius: 18px; }
+.map-caption { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; color: #24394b; font-weight: 700; }
+.map-caption small { color: #617789; font-weight: 400; }
+.route-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 5px; }
+.route-legend span { display: inline-flex; align-items: center; gap: 4px; color: #526777; font-size: 10px; }
+.route-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px #62778955; }
+.reset-view { margin-left: 10px; border: 1px solid #aebdca; border-radius: 6px; padding: 4px 8px; color: #334c60; background: #f7fafc; cursor: pointer; }
 .three-viewport { height: 520px; cursor: grab; }
 .three-viewport:active { cursor: grabbing; }
-.map-attribution { padding: 5px 10px 8px; color: #7891aa; font-size: 10px; }
-@media (max-width: 700px) { .three-viewport { height: 400px; } }
+.map-attribution { padding: 5px 10px 8px; color: #657b8d; font-size: 10px; }
+@media (max-width: 700px) { .three-viewport { height: 400px; } .map-caption { align-items: flex-start; } .map-caption > span { text-align: right; } }
 </style>
