@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import sceneConfig from '../data/3dSceneConfig.json' with { type: 'json' }
 
 const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, visualStyle: String })
@@ -36,27 +37,60 @@ const addDioramaCity = () => {
 
   const spacing = palette.buildingSpacing
   const roadMaterial = new THREE.MeshStandardMaterial({ color: palette.road, roughness: 1 })
-  const roadCountX = Math.floor(palette.cityWidth / (spacing * palette.streetEvery))
-  const roadCountZ = Math.floor(palette.cityDepth / (spacing * palette.streetEvery))
-  for (let i = -roadCountX; i <= roadCountX; i += 1) {
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(0.22, palette.cityDepth - 0.2), roadMaterial)
+  const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: palette.sidewalk, roughness: 0.94 })
+  const markingMaterial = new THREE.MeshBasicMaterial({ color: palette.roadMarking, side: THREE.DoubleSide })
+  const columns = Math.floor(palette.cityWidth / spacing)
+  const rows = Math.floor(palette.cityDepth / spacing)
+  const streetColumns = Array.from({ length: columns }, (_, index) => index).filter((index) => index % palette.streetEvery === 0)
+  const streetRows = Array.from({ length: rows }, (_, index) => index).filter((index) => index % palette.streetEvery === 0)
+  const streetX = (column) => (column - (columns - 1) / 2) * spacing
+  const streetZ = (row) => (row - (rows - 1) / 2) * spacing
+  const roadLength = palette.cityWidth - 0.18
+  const roadDepth = palette.cityDepth - 0.18
+  const roadY = -0.202
+  streetColumns.forEach((column) => {
+    const x = streetX(column)
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(palette.roadWidth, roadDepth), roadMaterial)
     road.rotation.x = -Math.PI / 2
-    road.position.set(i * spacing * palette.streetEvery, -0.205, 0)
+    road.position.set(x, roadY, 0)
     scene.add(road)
-  }
-  for (let i = -roadCountZ; i <= roadCountZ; i += 1) {
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(palette.cityWidth - 0.2, 0.22), roadMaterial)
+    for (const side of [-1, 1]) {
+      const sidewalk = new THREE.Mesh(new THREE.PlaneGeometry(palette.sidewalkWidth, roadDepth), sidewalkMaterial)
+      sidewalk.rotation.x = -Math.PI / 2
+      sidewalk.position.set(x + side * (palette.roadWidth + palette.sidewalkWidth) / 2, roadY + 0.002, 0)
+      scene.add(sidewalk)
+    }
+    for (let z = -roadDepth / 2 + 0.32; z < roadDepth / 2; z += 0.64) {
+      const dash = new THREE.Mesh(new THREE.PlaneGeometry(palette.roadMarkingWidth, 0.26), markingMaterial)
+      dash.rotation.x = -Math.PI / 2
+      dash.position.set(x, roadY + 0.004, z)
+      scene.add(dash)
+    }
+  })
+  streetRows.forEach((row) => {
+    const z = streetZ(row)
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(roadLength, palette.roadWidth), roadMaterial)
     road.rotation.x = -Math.PI / 2
-    road.position.set(0, -0.204, i * spacing * palette.streetEvery)
+    road.position.set(0, roadY, z)
     scene.add(road)
-  }
+    for (const side of [-1, 1]) {
+      const sidewalk = new THREE.Mesh(new THREE.PlaneGeometry(roadLength, palette.sidewalkWidth), sidewalkMaterial)
+      sidewalk.rotation.x = -Math.PI / 2
+      sidewalk.position.set(0, roadY + 0.002, z + side * (palette.roadWidth + palette.sidewalkWidth) / 2)
+      scene.add(sidewalk)
+    }
+    for (let x = -roadLength / 2 + 0.32; x < roadLength / 2; x += 0.64) {
+      const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.26, palette.roadMarkingWidth), markingMaterial)
+      dash.rotation.x = -Math.PI / 2
+      dash.position.set(x, roadY + 0.004, z)
+      scene.add(dash)
+    }
+  })
 
   const routeSegments = props.lines.flatMap((line) => line.stations.slice(1).map((station, index) => ({
     start: world(line.stations[index].x, line.stations[index].y),
     end: world(station.x, station.y)
   })))
-  const columns = Math.floor(palette.cityWidth / spacing)
-  const rows = Math.floor(palette.cityDepth / spacing)
   const buildingCapacity = columns * rows
   const buildingGeometry = new THREE.BoxGeometry(1, 1, 1)
   const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, vertexColors: true })
@@ -172,6 +206,83 @@ const addRoutes = () => {
 const createTrainMesh = (train) => {
   const color = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
   const group = new THREE.Group()
+  if (cute()) {
+    const shellMaterial = new THREE.MeshStandardMaterial({ color: 0xfafcff, roughness: 0.42, metalness: 0.05 })
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xe4edf5, roughness: 0.72 })
+    const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x31536e, roughness: 0.24, metalness: 0.15 })
+    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0xd5e0e9, roughness: 0.56 })
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x283947, roughness: 0.82 })
+    const stripeMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.4 })
+    const carGeometry = new RoundedBoxGeometry(0.3, 0.3, 0.34, 3, 0.035)
+    const roofGeometry = new RoundedBoxGeometry(0.26, 0.045, 0.29, 2, 0.018)
+    const carCenters = [-0.31, 0, 0.31]
+    carCenters.forEach((center) => {
+      const car = new THREE.Mesh(carGeometry, shellMaterial)
+      car.position.set(center, 0.31, 0)
+      car.castShadow = true
+      car.receiveShadow = true
+      group.add(car)
+      const roof = new THREE.Mesh(roofGeometry, roofMaterial)
+      roof.position.set(center, 0.475, 0)
+      group.add(roof)
+      for (const side of [-1, 1]) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.055, 0.012), stripeMaterial)
+        stripe.position.set(center, 0.215, side * 0.173)
+        group.add(stripe)
+        for (const offset of [-0.075, 0.075]) {
+          const window = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.09, 0.012), windowMaterial)
+          window.position.set(center + offset, 0.365, side * 0.173)
+          group.add(window)
+        }
+        const door = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.17, 0.014), doorMaterial)
+        door.position.set(center + 0.12, 0.31, side * 0.173)
+        group.add(door)
+      }
+      for (const offset of [-0.1, 0.1]) for (const side of [-1, 1]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.043, 0.043, 0.036, 10), wheelMaterial)
+        wheel.rotation.x = Math.PI / 2
+        wheel.position.set(center + offset, 0.16, side * 0.15)
+        group.add(wheel)
+      }
+      const airConditioner = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.045, 0.11), roofMaterial)
+      airConditioner.position.set(center, 0.52, 0)
+      group.add(airConditioner)
+    })
+    for (const center of [-0.155, 0.155]) {
+      const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.055, 0.07), wheelMaterial)
+      coupler.position.set(center, 0.255, 0)
+      group.add(coupler)
+    }
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.13, 0.24), windowMaterial)
+    windshield.position.set(0.466, 0.365, 0)
+    group.add(windshield)
+    for (const side of [-1, 1]) {
+      const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.035, 0.035), new THREE.MeshBasicMaterial({ color: 0xfff3c1 }))
+      headlight.position.set(0.466, 0.235, side * 0.105)
+      group.add(headlight)
+    }
+    const labelCanvas = document.createElement('canvas')
+    labelCanvas.width = 256
+    labelCanvas.height = 56
+    const context = labelCanvas.getContext('2d')
+    context.fillStyle = '#ffffff'
+    context.fillRect(1, 1, 254, 54)
+    context.fillStyle = color
+    context.fillRect(1, 1, 7, 54)
+    context.fillStyle = '#20384e'
+    context.font = 'bold 24px system-ui, sans-serif'
+    context.textBaseline = 'middle'
+    context.fillText(train.trainId, 18, 28)
+    const labelTexture = new THREE.CanvasTexture(labelCanvas)
+    labelTexture.colorSpace = THREE.SRGBColorSpace
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false }))
+    label.scale.set(1.15, 0.25, 1)
+    label.position.set(0, 0.88, 0)
+    label.visible = false
+    group.add(label)
+    group.userData.label = label
+    return group
+  }
   const body = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.78 : 0.62, cute() ? 0.3 : 0.22, cute() ? 0.34 : 0.2), new THREE.MeshStandardMaterial({ color: cute() ? 0xfafcff : train.trainType === 'EXPRESS' ? 0xe5a83b : color, metalness: cute() ? 0.02 : 0.25, roughness: cute() ? 0.48 : 0.35 }))
   body.position.y = cute() ? 0.33 : 0.28
   body.castShadow = true
@@ -212,8 +323,16 @@ const syncTrains = () => {
     mesh.userData.heading = Math.atan2(toWorld.z - fromWorld.z, toWorld.x - fromWorld.x)
     mesh.userData.train = train
     mesh.scale.setScalar(props.selectedTrain?.id === train.id ? 1.18 : hoveredTrainId === train.id ? 1.1 : 1)
+    if (mesh.userData.label) mesh.userData.label.visible = props.selectedTrain?.id === train.id || hoveredTrainId === train.id
   })
-  trainMeshes.forEach((mesh, id) => { if (!activeIds.has(id)) { scene.remove(mesh); trainMeshes.delete(id) } })
+  trainMeshes.forEach((mesh, id) => {
+    if (!activeIds.has(id)) {
+      scene.remove(mesh)
+      mesh.userData.label?.material.map?.dispose()
+      mesh.userData.label?.material.dispose()
+      trainMeshes.delete(id)
+    }
+  })
 }
 
 const animate = () => {
@@ -325,7 +444,7 @@ onMounted(() => {
 })
 watch(() => props.trains, syncTrains, { deep: true })
 watch(() => props.selectedTrain, syncTrains, { deep: true })
-onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); renderer?.domElement.removeEventListener('pointermove', hoverTrain); controls?.dispose(); renderer?.dispose(); trainMeshes.clear() })
+onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); renderer?.domElement.removeEventListener('pointermove', hoverTrain); controls?.dispose(); trainMeshes.forEach((mesh) => { mesh.userData.label?.material.map?.dispose(); mesh.userData.label?.material.dispose() }); renderer?.dispose(); trainMeshes.clear() })
 </script>
 
 <template>
