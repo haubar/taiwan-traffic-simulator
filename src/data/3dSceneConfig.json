@@ -17,7 +17,7 @@
     "routeBed": "#46545f",
     "routeWidth": 0.16,
     "routeBedWidth": 0.3,
-    "routeSurfaceHeight": -0.205,
+    "routeSurfaceHeight": -0.195,
     "trainScale": 0.68,
     "selectedTrainScale": 0.76,
     "hoverTrainScale": 0.72,
@@ -30,7 +30,7 @@
     "sidewalkWidth": 0.12,
     "roadMarkingWidth": 0.026,
     "routeClearance": 0.58,
-    "cameraPosition": [14, 19, 17],
+    "cameraPosition": [10, 14, 12],
     "cameraTarget": [0, 0, 0],
     "hemisphereIntensity": 2.5,
     "sunIntensity": 2.0

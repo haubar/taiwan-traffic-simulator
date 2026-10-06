@@ -3,13 +3,18 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import sceneConfig from '../data/3dSceneConfig.json' with { type: 'json' }
+import SolarIndicator from './SolarIndicator.vue'
 
-const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String })
+const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, daylight: { type: Number, default: 1 }, sunrise: String, sunset: String })
 const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
 let stationLabels = []
+let hemisphereLight, sunLight, moonLight
+const nightBackground = new THREE.Color('#081321')
+const dayBackground = new THREE.Color(sceneConfig.diorama.background)
+const frameBackground = new THREE.Color()
 let hoveredTrainId = null
 let pointerDownPosition = null
 let pointerDragged = false
@@ -257,7 +262,7 @@ const addDioramaCity = () => {
 
   const treePositions = [[-9, -3.9], [-7.5, 3.9], [-4.5, -3.9], [-1.5, 3.9], [2, -3.9], [5, 3.9], [8, -3.9], [9.6, 2.8]]
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.05, 0.2, 7), new THREE.MeshStandardMaterial({ color: palette.treeTrunk }), treePositions.length)
-  const crowns = new THREE.InstancedMesh(new THREE.SphereGeometry(0.17, 9, 7), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, vertexColors: true }), treePositions.length)
+  const crowns = new THREE.InstancedMesh(new THREE.SphereGeometry(0.17, 9, 7), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), treePositions.length)
   treePositions.forEach(([x, z], index) => {
     dummy.position.set(x, -0.08, z)
     dummy.updateMatrix()
@@ -480,6 +485,11 @@ const syncTrains = () => {
 
 const animate = () => {
   animationFrame = requestAnimationFrame(animate)
+  const dayAmount = THREE.MathUtils.clamp(props.daylight ?? 1, 0, 1)
+  scene.background.lerpColors(nightBackground, dayBackground, dayAmount)
+  if (hemisphereLight) hemisphereLight.intensity = 0.38 + palette.hemisphereIntensity * dayAmount
+  if (sunLight) sunLight.intensity = palette.sunIntensity * dayAmount
+  if (moonLight) moonLight.intensity = 0.35 * (1 - dayAmount)
   trainMeshes.forEach((mesh) => {
     if (!mesh.userData.target) return
     // Simulation time advances every animation frame, so train.x/y already
@@ -573,7 +583,7 @@ const resetView = () => {
 
 onMounted(() => {
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(palette.background)
+  scene.background = frameBackground.copy(nightBackground).lerp(dayBackground, props.daylight ?? 1)
   camera = new THREE.PerspectiveCamera(42, viewport.value.clientWidth / viewport.value.clientHeight, 0.1, 100)
   camera.position.set(...palette.cameraPosition)
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -596,11 +606,15 @@ onMounted(() => {
   controls.maxDistance = 32
   controls.maxPolarAngle = Math.PI / 2.05
   controls.target.set(0, 0, 0)
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x9badbd, palette.hemisphereIntensity))
-  const sun = new THREE.DirectionalLight(0xffffff, palette.sunIntensity)
-  sun.position.set(-8, 12, 9)
-  sun.castShadow = true
-  scene.add(sun)
+  hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x9badbd, palette.hemisphereIntensity)
+  scene.add(hemisphereLight)
+  sunLight = new THREE.DirectionalLight(0xffffff, palette.sunIntensity)
+  sunLight.position.set(-8, 12, 9)
+  sunLight.castShadow = true
+  scene.add(sunLight)
+  moonLight = new THREE.DirectionalLight(0xb9d5ff, 0)
+  moonLight.position.set(8, 8, -9)
+  scene.add(moonLight)
   addMapBase(); stationLabels = addRoutes(); syncTrains(); animate()
   window.addEventListener('resize', resize)
 })
@@ -613,6 +627,7 @@ onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEvent
   <div class="three-map-wrap">
     <div class="map-caption">
       <div><strong>{{ journeyMode === 'cab' ? '車內行進視角' : journeyMode === 'follow' ? '列車跟車視角' : '3D 地圖總覽' }}</strong><div class="route-legend"><span v-for="line in lines" :key="line.id"><i :style="{background:line.color}"></i>{{line.id}}</span></div></div>
+      <SolarIndicator :daylight="daylight" :sunrise="sunrise" :sunset="sunset" />
       <span><small>{{ journeyMode === 'cab' ? '鏡頭位於列車前端 · 朝行車方向觀察' : journeyMode === 'follow' ? '鏡頭跟隨目前列車行駛 · 可旋轉觀察' : '拖曳平移／旋轉 · 滾輪縮放' }}</small><button class="reset-view" type="button" @click="resetView">重置視角</button></span>
     </div>
     <div ref="viewport" class="three-viewport"></div>
