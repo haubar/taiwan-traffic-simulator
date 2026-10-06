@@ -2,7 +2,6 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import sceneConfig from '../data/3dSceneConfig.json' with { type: 'json' }
 
 const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String })
@@ -91,42 +90,64 @@ const addDioramaCity = () => {
     end: world(station.x, station.y)
   })))
   const buildingCapacity = columns * rows
-  const facadeCanvas = document.createElement('canvas')
-  facadeCanvas.width = 128
-  facadeCanvas.height = 128
-  const facadeContext = facadeCanvas.getContext('2d')
-  facadeContext.fillStyle = '#dce5eb'
-  facadeContext.fillRect(0, 0, 128, 128)
-  facadeContext.strokeStyle = '#c4d0d8'
-  facadeContext.lineWidth = 2
-  for (let floor = 0; floor <= 5; floor += 1) {
-    const y = 7 + floor * 23
-    facadeContext.beginPath()
-    facadeContext.moveTo(0, y)
-    facadeContext.lineTo(128, y)
-    facadeContext.stroke()
-  }
-  for (let floor = 0; floor < 5; floor += 1) for (let bay = 0; bay < 4; bay += 1) {
-    const x = 8 + bay * 30
-    const y = 12 + floor * 23
-    facadeContext.fillStyle = floor % 3 === 0 ? '#7599ae' : '#88a9bb'
-    facadeContext.fillRect(x, y, 17, 13)
-    facadeContext.fillStyle = '#d7e6ec'
-    facadeContext.fillRect(x + 7, y, 2, 13)
-  }
-  const facadeTexture = new THREE.CanvasTexture(facadeCanvas)
-  facadeTexture.colorSpace = THREE.SRGBColorSpace
-  facadeTexture.anisotropy = renderer.capabilities.getMaxAnisotropy()
   const buildingGeometry = new THREE.BoxGeometry(1, 1, 1)
-  const facadeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, map: facadeTexture, roughness: 0.8, vertexColors: true })
-  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, vertexColors: true })
-  const buildingMaterials = [facadeMaterial, facadeMaterial, roofMaterial, roofMaterial, facadeMaterial, facadeMaterial]
-  const buildings = new THREE.InstancedMesh(buildingGeometry, buildingMaterials, buildingCapacity)
+  const profileEntries = [palette.buildingProfiles.lowRise, palette.buildingProfiles.residential, palette.buildingProfiles.office]
+  const buildingTypes = profileEntries.map((profile) => {
+    const facadeCanvas = document.createElement('canvas')
+    facadeCanvas.width = 160
+    facadeCanvas.height = 160
+    const context = facadeCanvas.getContext('2d')
+    context.fillStyle = profile.facade
+    context.fillRect(0, 0, 160, 160)
+    const floorHeight = 150 / profile.floors
+    const bayWidth = 144 / profile.bays
+    for (let floor = 0; floor < profile.floors; floor += 1) {
+      const y = 5 + floor * floorHeight
+      context.fillStyle = floor % 2 ? '#d4dde2' : '#c7d2d9'
+      context.fillRect(0, y, 160, 3)
+      for (let bay = 0; bay < profile.bays; bay += 1) {
+        const x = 8 + bay * bayWidth
+        const windowWidth = bayWidth * 0.62
+        const windowHeight = floorHeight * (profile.balconies ? 0.5 : 0.66)
+        context.fillStyle = profile.window
+        context.fillRect(x, y + 5, windowWidth, windowHeight)
+        context.fillStyle = '#bdd0da'
+        context.fillRect(x + windowWidth * 0.68, y + 5, 2, windowHeight)
+        if (profile.balconies) {
+          const railY = y + floorHeight - 4
+          context.strokeStyle = '#91a4af'
+          context.lineWidth = 2
+          context.beginPath()
+          context.moveTo(x - 1, railY)
+          context.lineTo(x + windowWidth + 2, railY)
+          context.stroke()
+        }
+      }
+    }
+    if (profile === palette.buildingProfiles.lowRise) {
+      context.fillStyle = '#526a78'
+      context.fillRect(0, 124, 160, 36)
+      context.fillStyle = '#9eb9c5'
+      for (let bay = 0; bay < profile.bays; bay += 1) context.fillRect(7 + bay * bayWidth, 130, bayWidth * 0.7, 21)
+    }
+    const texture = new THREE.CanvasTexture(facadeCanvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    const facadeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture, roughness: 0.76, vertexColors: true })
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, vertexColors: true })
+    const materials = [facadeMaterial, facadeMaterial, roofMaterial, roofMaterial, facadeMaterial, facadeMaterial]
+    const mesh = new THREE.InstancedMesh(buildingGeometry, materials, buildingCapacity)
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    return mesh
+  })
   const rooftopEquipment = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xc6d0d8, roughness: 0.88 }), buildingCapacity)
+  const podiums = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xaebbc3, roughness: 0.82 }), buildingCapacity)
   const dummy = new THREE.Object3D()
   const color = new THREE.Color()
-  let buildingIndex = 0
+  const buildingIndices = [0, 0, 0]
   let rooftopIndex = 0
+  let podiumIndex = 0
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
       const x = (column - (columns - 1) / 2) * spacing
@@ -135,33 +156,51 @@ const addDioramaCity = () => {
       const noise = Math.abs(Math.sin(column * 127.1 + row * 311.7) * 43758.5453) % 1
       if (noise < 0.15) continue
       if (routeSegments.some(({ start, end }) => distanceToSegment({ x, z }, start, end) < palette.routeClearance)) continue
-      const width = 0.28 + noise * 0.2
-      const depth = 0.28 + ((noise * 17.3) % 1) * 0.2
-      const height = noise > 0.72 ? 0.62 + ((noise * 29.7) % 1) * 0.8 : 0.24 + ((noise * 29.7) % 1) * 0.48
-      dummy.position.set(x, -0.2 + height / 2, z)
+      const districtSeed = Math.abs(Math.sin(Math.floor(column / palette.streetEvery) * 12.9898 + Math.floor(row / palette.streetEvery) * 78.233) * 43758.5453) % 1
+      const typeIndex = districtSeed < 0.28 ? 0 : districtSeed < 0.78 ? 1 : 2
+      const profile = profileEntries[typeIndex]
+      const width = 0.34 + ((noise * 11.3) % 1) * 0.16
+      const depth = 0.34 + ((noise * 17.3) % 1) * 0.16
+      const height = 0.22 + ((noise * 29.7) % 1) * (profile.maxHeight - 0.22)
+      const hasPodium = typeIndex === 2 || noise > 0.82
+      const podiumHeight = hasPodium ? 0.11 : 0
+      if (hasPodium) {
+        dummy.position.set(x, -0.2 + podiumHeight / 2, z)
+        dummy.scale.set(width * 1.2, podiumHeight, depth * 1.2)
+        dummy.rotation.set(0, 0, 0)
+        dummy.updateMatrix()
+        podiums.setMatrixAt(podiumIndex, dummy.matrix)
+        podiumIndex += 1
+      }
+      dummy.position.set(x, -0.2 + podiumHeight + height / 2, z)
       dummy.scale.set(width, height, depth)
+      dummy.rotation.set(0, noise > 0.5 ? Math.PI / 2 : 0, 0)
       dummy.updateMatrix()
-      buildings.setMatrixAt(buildingIndex, dummy.matrix)
+      buildingTypes[typeIndex].setMatrixAt(buildingIndices[typeIndex], dummy.matrix)
       color.set(palette.buildingColors[Math.floor(noise * palette.buildingColors.length)])
-      buildings.setColorAt(buildingIndex, color)
-      if (noise > 0.68) {
+      buildingTypes[typeIndex].setColorAt(buildingIndices[typeIndex], color)
+      buildingIndices[typeIndex] += 1
+      if (noise > 0.58 || typeIndex === 2) {
         const equipmentWidth = 0.1 + noise * 0.035
-        dummy.position.set(x + width * 0.12, -0.2 + height + 0.045, z)
-        dummy.scale.set(equipmentWidth, 0.09, equipmentWidth)
+        dummy.position.set(x + width * 0.12, -0.2 + podiumHeight + height + 0.045, z)
+        dummy.scale.set(equipmentWidth, 0.09, equipmentWidth * 0.8)
+        dummy.rotation.set(0, 0, 0)
         dummy.updateMatrix()
         rooftopEquipment.setMatrixAt(rooftopIndex, dummy.matrix)
         rooftopIndex += 1
       }
-      buildingIndex += 1
     }
   }
-  buildings.count = buildingIndex
-  buildings.castShadow = true
-  buildings.receiveShadow = true
+  buildingTypes.forEach((mesh, index) => {
+    mesh.count = buildingIndices[index]
+    scene.add(mesh)
+  })
   rooftopEquipment.count = rooftopIndex
   rooftopEquipment.castShadow = true
-  scene.add(buildings)
+  podiums.count = podiumIndex
+  podiums.receiveShadow = true
   scene.add(rooftopEquipment)
+  scene.add(podiums)
 
   const treePositions = [[-9, -3.9], [-7.5, 3.9], [-4.5, -3.9], [-1.5, 3.9], [2, -3.9], [5, 3.9], [8, -3.9], [9.6, 2.8]]
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.05, 0.2, 7), new THREE.MeshStandardMaterial({ color: palette.treeTrunk }), treePositions.length)
@@ -190,10 +229,10 @@ const addRoutes = () => {
     const routeColor = line.color
     const route = new THREE.CurvePath()
     points.slice(1).forEach((point, index) => route.add(new THREE.LineCurve3(points[index], point)))
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.09, 7, false), new THREE.MeshStandardMaterial({ color: palette.routeBed, roughness: 0.82 })))
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.045, 7, false), new THREE.MeshStandardMaterial({ color: routeColor, roughness: 0.5, emissive: routeColor, emissiveIntensity: 0.1 })))
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, palette.routeBedWidth, 8, false), new THREE.MeshBasicMaterial({ color: palette.routeBed, toneMapped: false })))
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, palette.routeWidth, 8, false), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false })))
     line.stations.forEach((station) => {
-      const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.09, 12), new THREE.MeshStandardMaterial({ color: routeColor, emissive: routeColor, emissiveIntensity: 0.08 }))
+      const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.09, 12), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false }))
       const position = world(station.x, station.y)
       marker.position.set(position.x, 0.14, position.z)
       scene.add(marker)
@@ -206,61 +245,104 @@ const addRoutes = () => {
 }
 
 const createTrainMesh = (train) => {
-  const color = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
+  const routeColor = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
+  const trainPalette = sceneConfig.taipeiTrain
   const group = new THREE.Group()
-  const shellMaterial = new THREE.MeshStandardMaterial({ color: 0xe7ebee, roughness: 0.34, metalness: 0.32 })
-  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c1c8, roughness: 0.75, metalness: 0.14 })
-  const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x253b4c, roughness: 0.2, metalness: 0.22 })
-  const stripeMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.44, metalness: 0.12 })
-  const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x29333b, roughness: 0.82 })
-  const body = new THREE.Mesh(new RoundedBoxGeometry(0.94, 0.34, 0.36, 4, 0.045), shellMaterial)
-  body.position.y = 0.34
+  const shellMaterial = new THREE.MeshStandardMaterial({ color: trainPalette.body, roughness: 0.34, metalness: 0.32 })
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: trainPalette.roof, roughness: 0.72, metalness: 0.14 })
+  const windowMaterial = new THREE.MeshStandardMaterial({ color: trainPalette.window, roughness: 0.2, metalness: 0.22 })
+  const stripeMaterial = new THREE.MeshStandardMaterial({ color: trainPalette.blueStripe, roughness: 0.44, metalness: 0.12 })
+  const doorMaterial = new THREE.MeshStandardMaterial({ color: trainPalette.door, roughness: 0.62 })
+  const darkMaterial = new THREE.MeshStandardMaterial({ color: trainPalette.undercarriage, roughness: 0.82 })
+  const bodyShape = new THREE.Shape()
+  bodyShape.moveTo(-0.68, 0.18)
+  bodyShape.lineTo(-0.68, 0.49)
+  bodyShape.lineTo(0.42, 0.49)
+  bodyShape.quadraticCurveTo(0.53, 0.49, 0.61, 0.42)
+  bodyShape.lineTo(0.67, 0.37)
+  bodyShape.lineTo(0.67, 0.18)
+  bodyShape.closePath()
+  const bodyGeometry = new THREE.ExtrudeGeometry(bodyShape, { depth: 0.36, steps: 1, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 })
+  bodyGeometry.translate(0, 0, -0.18)
+  const body = new THREE.Mesh(bodyGeometry, shellMaterial)
   body.castShadow = true
   body.receiveShadow = true
   group.add(body)
 
   for (const side of [-1, 1]) {
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.065, 0.012), stripeMaterial)
-    stripe.position.set(0, 0.225, side * 0.183)
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.055, 0.012), stripeMaterial)
+    stripe.position.set(-0.035, 0.255, side * 0.19)
     group.add(stripe)
-    for (const x of [-0.34, -0.23, -0.08, 0.08, 0.23, 0.34]) {
-      const window = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.11, 0.014), windowMaterial)
-      window.position.set(x, 0.385, side * 0.183)
+    for (const x of [-0.62, -0.28, -0.17, 0.17, 0.28, 0.62]) {
+      const window = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.115, 0.014), windowMaterial)
+      window.position.set(x, 0.39, side * 0.188)
       group.add(window)
     }
-    for (const x of [-0.155, 0.155]) {
-      const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.19, 0.018), roofMaterial)
-      doorFrame.position.set(x, 0.33, side * 0.184)
+    for (const x of [-0.53, -0.37, -0.08, 0.08, 0.37, 0.53]) {
+      const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.205, 0.018), doorMaterial)
+      doorFrame.position.set(x, 0.335, side * 0.19)
       group.add(doorFrame)
-      const doorGlass = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.105, 0.019), windowMaterial)
-      doorGlass.position.set(x, 0.365, side * 0.185)
+      const doorGlass = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.105, 0.019), windowMaterial)
+      doorGlass.position.set(x, 0.375, side * 0.191)
       group.add(doorGlass)
     }
-    for (const x of [-0.29, 0, 0.29]) {
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.28, 0.014), darkMaterial)
-      seam.position.set(x, 0.34, side * 0.184)
+    for (const x of [-0.225, 0.22]) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.29, 0.014), darkMaterial)
+      seam.position.set(x, 0.34, side * 0.19)
       group.add(seam)
     }
-    for (const x of [-0.31, 0, 0.31]) for (const offset of [-0.105, 0.105]) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.04, 12), darkMaterial)
-      wheel.rotation.x = Math.PI / 2
-      wheel.position.set(x + offset, 0.16, side * 0.16)
-      group.add(wheel)
+    const sideDisplay = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.016), windowMaterial)
+    sideDisplay.position.set(0.51, 0.45, side * 0.19)
+    group.add(sideDisplay)
+    const routeLamp = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.018, 0.02), new THREE.MeshBasicMaterial({ color: routeColor }))
+    routeLamp.position.set(0.51, 0.45, side * 0.201)
+    group.add(routeLamp)
+    for (const bogie of [-0.55, -0.35, -0.1, 0.1, 0.35, 0.55]) {
+      const bogieFrame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.075, 0.3), darkMaterial)
+      bogieFrame.position.set(bogie, 0.15, 0)
+      group.add(bogieFrame)
+      for (const axle of [-0.035, 0.035]) {
+        for (const wheelSide of [-1, 1]) {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.04, 12), darkMaterial)
+          wheel.rotation.x = Math.PI / 2
+          wheel.position.set(bogie + axle, 0.115, wheelSide * 0.17)
+          group.add(wheel)
+        }
+        const axleDetail = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.34, 8), roofMaterial)
+        axleDetail.rotation.x = Math.PI / 2
+        axleDetail.position.set(bogie + axle, 0.115, 0)
+        group.add(axleDetail)
+      }
     }
   }
-  for (const x of [-0.31, 0, 0.31]) {
-    const airConditioner = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.045, 0.14), roofMaterial)
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.07, 0.39), darkMaterial)
+  skirt.position.set(-0.02, 0.18, 0)
+  group.add(skirt)
+  for (const x of [-0.34, 0, 0.34]) {
+    const airConditioner = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.055, 0.16), roofMaterial)
     airConditioner.position.set(x, 0.535, 0)
     group.add(airConditioner)
+    const roofFan = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.11), darkMaterial)
+    roofFan.position.set(x, 0.569, 0)
+    group.add(roofFan)
   }
-  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.145, 0.25), windowMaterial)
-  windshield.position.set(0.474, 0.38, 0)
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.14, 0.255), windowMaterial)
+  windshield.position.set(0.662, 0.325, 0)
   group.add(windshield)
+  const frontDisplay = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.035, 0.12), new THREE.MeshStandardMaterial({ color: 0x172b3b, emissive: routeColor, emissiveIntensity: 0.18 }))
+  frontDisplay.position.set(0.651, 0.455, 0)
+  group.add(frontDisplay)
+  const frontRouteText = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, 0.055), new THREE.MeshBasicMaterial({ color: routeColor }))
+  frontRouteText.position.set(0.663, 0.455, 0)
+  group.add(frontRouteText)
   for (const side of [-1, 1]) {
-    const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.04, 0.045), new THREE.MeshBasicMaterial({ color: 0xfff1bd }))
-    headlight.position.set(0.475, 0.235, side * 0.11)
+    const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.038, 0.047), new THREE.MeshBasicMaterial({ color: trainPalette.headlight }))
+    headlight.position.set(0.67, 0.22, side * 0.12)
     group.add(headlight)
   }
+  const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.045, 0.09), darkMaterial)
+  coupler.position.set(0.7, 0.145, 0)
+  group.add(coupler)
 
   const labelCanvas = document.createElement('canvas')
   labelCanvas.width = 256
@@ -268,7 +350,7 @@ const createTrainMesh = (train) => {
   const context = labelCanvas.getContext('2d')
   context.fillStyle = '#ffffff'
   context.fillRect(1, 1, 254, 54)
-  context.fillStyle = color
+  context.fillStyle = routeColor
   context.fillRect(1, 1, 7, 54)
   context.fillStyle = '#20384e'
   context.font = 'bold 24px system-ui, sans-serif'

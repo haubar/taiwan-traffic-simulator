@@ -7,9 +7,16 @@
     "sidewalk": "#d1d8de",
     "roadMarking": "#ffffff",
     "buildingColors": ["#e9edf0", "#d7dfe5", "#cbd5dc", "#eef1f2", "#c3ced6"],
+    "buildingProfiles": {
+      "lowRise": {"maxHeight": 0.52, "facade": "#ded4c6", "window": "#496273", "floors": 3, "bays": 4, "balconies": false},
+      "residential": {"maxHeight": 0.92, "facade": "#dddfe0", "window": "#58768a", "floors": 5, "bays": 4, "balconies": true},
+      "office": {"maxHeight": 1.52, "facade": "#b7c8d2", "window": "#31566d", "floors": 7, "bays": 5, "balconies": false}
+    },
     "treeTrunk": "#a78d72",
     "treeColors": ["#9bcfac", "#83c5a0", "#b2d9ae"],
-    "routeBed": "#f8fafb",
+    "routeBed": "#46545f",
+    "routeWidth": 0.075,
+    "routeBedWidth": 0.15,
     "station": "#ffffff",
     "cityWidth": 23,
     "cityDepth": 11,
@@ -23,5 +30,14 @@
     "cameraTarget": [0, 0, 0],
     "hemisphereIntensity": 2.5,
     "sunIntensity": 2.0
+  },
+  "taipeiTrain": {
+    "body": "#dfe4e8",
+    "roof": "#b9c2c9",
+    "blueStripe": "#2467a8",
+    "window": "#203747",
+    "door": "#bbc5cc",
+    "undercarriage": "#29343c",
+    "headlight": "#fff2c4"
   }
 }
