@@ -49,7 +49,7 @@ const cooldownRemaining = computed(() => {
   const cached = stationCache.get(selectedStation.value)
   return cached ? Math.max(0, Math.ceil((60000 - (cacheClock.value - cached.fetchedAt)) / 1000)) : 0
 })
-const selectTrain = (train) => { selected.value=train; viewMode.value='scene' }
+const selectTrain = (train) => { selected.value=train; if (viewMode.value !== '3d') viewMode.value='scene' }
 const demoEnabled = import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
 const buildStationSchedules = (payload, fetchedAt) => {
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - fetchedAt) / 1000))

@@ -9,9 +9,59 @@ const emit = defineEmits(['select'])
 const viewport = ref(null)
 let renderer, animationFrame, scene, camera, controls, raycaster
 const trainMeshes = new Map()
+let stationLabels = []
 let hoveredTrainId = null
+let pointerDownPosition = null
+let pointerDragged = false
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
 const palette = sceneConfig.diorama
+
+const createRouteRibbon = (points, width, y, color) => {
+  const positions = []
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1]
+    const end = points[index]
+    const dx = end.x - start.x
+    const dz = end.z - start.z
+    const length = Math.hypot(dx, dz) || 1
+    const offsetX = -(dz / length) * width / 2
+    const offsetZ = (dx / length) * width / 2
+    const leftStart = [start.x + offsetX, y, start.z + offsetZ]
+    const rightStart = [start.x - offsetX, y, start.z - offsetZ]
+    const leftEnd = [end.x + offsetX, y, end.z + offsetZ]
+    const rightEnd = [end.x - offsetX, y, end.z - offsetZ]
+    positions.push(...leftStart, ...leftEnd, ...rightStart, ...rightStart, ...leftEnd, ...rightEnd)
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.computeVertexNormals()
+  return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, toneMapped: false }))
+}
+
+const createStationLabel = (name, color) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 64
+  const context = canvas.getContext('2d')
+  context.fillStyle = 'rgba(255,255,255,0.96)'
+  context.beginPath()
+  context.roundRect(2, 2, 252, 60, 14)
+  context.fill()
+  context.strokeStyle = color
+  context.lineWidth = 8
+  context.stroke()
+  context.fillStyle = '#21384b'
+  context.font = 'bold 32px system-ui, sans-serif'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(name, 128, 33)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }))
+  label.scale.set(0.72, 0.18, 1)
+  label.renderOrder = 3
+  return label
+}
 
 const distanceToSegment = (point, start, end) => {
   const dx = end.x - start.x
@@ -227,29 +277,39 @@ const addDioramaCity = () => {
 const addMapBase = () => addDioramaCity()
 
 const addRoutes = () => {
+  const seenStations = new Set()
+  const seenStationNames = new Set()
+  const stationLabels = []
   props.lines.forEach((line) => {
-    const points = line.stations.map((station) => world(station.x, station.y).setY(0.08))
-    const colorPoints = line.stations.map((station) => world(station.x, station.y).setY(0.2))
+    const points = line.stations.map((station) => world(station.x, station.y))
     const routeColor = line.color
-    const route = new THREE.CurvePath()
-    const colorRoute = new THREE.CurvePath()
-    points.slice(1).forEach((point, index) => route.add(new THREE.LineCurve3(points[index], point)))
-    colorPoints.slice(1).forEach((point, index) => colorRoute.add(new THREE.LineCurve3(colorPoints[index], point)))
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, palette.routeBedWidth, 8, false), new THREE.MeshBasicMaterial({ color: palette.routeBed, toneMapped: false })))
-    const coloredRail = new THREE.Mesh(new THREE.TubeGeometry(colorRoute, colorPoints.length * 2, palette.routeWidth, 8, false), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false }))
-    coloredRail.renderOrder = 1
-    scene.add(coloredRail)
+    scene.add(createRouteRibbon(points, palette.routeBedWidth, palette.routeSurfaceHeight, palette.routeBed))
+    scene.add(createRouteRibbon(points, palette.routeWidth, palette.routeSurfaceHeight + 0.002, routeColor))
     line.stations.forEach((station) => {
-      const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.09, 12), new THREE.MeshBasicMaterial({ color: routeColor, toneMapped: false }))
+      const markerKey = `${station.name}:${Math.round(station.x)}:${Math.round(station.y)}`
+      if (seenStations.has(markerKey)) return
+      seenStations.add(markerKey)
       const position = world(station.x, station.y)
-      marker.position.set(position.x, 0.14, position.z)
+      const marker = new THREE.Mesh(new THREE.CircleGeometry(0.105, 20), new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide, toneMapped: false }))
+      marker.rotation.x = -Math.PI / 2
+      marker.position.set(position.x, palette.routeSurfaceHeight + 0.008, position.z)
+      marker.renderOrder = 2
       scene.add(marker)
-      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.28), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72 }))
-      stationBuilding.position.set(position.x, 0.23, position.z)
-      stationBuilding.castShadow = true
-      scene.add(stationBuilding)
+      const center = new THREE.Mesh(new THREE.CircleGeometry(0.055, 16), new THREE.MeshBasicMaterial({ color: routeColor, side: THREE.DoubleSide, toneMapped: false }))
+      center.rotation.x = -Math.PI / 2
+      center.position.set(position.x, palette.routeSurfaceHeight + 0.01, position.z)
+      center.renderOrder = 2
+      scene.add(center)
+      if (seenStationNames.has(station.name)) return
+      seenStationNames.add(station.name)
+      const label = createStationLabel(station.name, routeColor)
+      label.position.set(position.x, 0.08, position.z + 0.16)
+      label.visible = false
+      scene.add(label)
+      stationLabels.push(label)
     })
   })
+  return stationLabels
 }
 
 const createTrainMesh = (train) => {
@@ -376,26 +436,37 @@ const createTrainMesh = (train) => {
 }
 
 const syncTrains = () => {
-  const activeIds = new Set(props.trains.map((train) => train.id))
+  const activeIds = new Set(props.trains.map((train) => train.trainId || train.id))
   props.trains.forEach((train) => {
-    let mesh = trainMeshes.get(train.id)
-    if (!mesh) { mesh = createTrainMesh(train); scene.add(mesh); trainMeshes.set(train.id, mesh) }
-    mesh.userData.target = world(train.x, train.y)
+    const meshId = train.trainId || train.id
+    let mesh = trainMeshes.get(meshId)
+    if (!mesh) { mesh = createTrainMesh(train); scene.add(mesh); trainMeshes.set(meshId, mesh) }
+    const line = props.lines.find((candidate) => candidate.id === train.lineId)
+    const from = line?.stations.find((station) => station.id === train.fromStation)
+    const to = line?.stations.find((station) => station.id === train.toStation)
+    const progress = THREE.MathUtils.clamp(Number(train.progress) || 0, 0, 1)
+    const targetX = from && to ? THREE.MathUtils.lerp(from.x, to.x, progress) : train.x
+    const targetY = from && to ? THREE.MathUtils.lerp(from.y, to.y, progress) : train.y
+    mesh.userData.target = world(targetX, targetY)
     // Place newly appearing trains directly on their current track position;
     // easing from the scene origin looks like a sudden cross-map jump.
     if (!mesh.userData.positionInitialized) {
       mesh.position.copy(mesh.userData.target)
       mesh.userData.positionInitialized = true
     }
-    const line = props.lines.find((candidate) => candidate.id === train.lineId)
-    const from = line?.stations.find((station) => station.id === train.fromStation)
-    const to = line?.stations.find((station) => station.id === train.toStation)
     const fromWorld = from ? world(from.x, from.y) : mesh.userData.target
     const toWorld = to ? world(to.x, to.y) : mesh.userData.target.clone().add(new THREE.Vector3(1, 0, 0))
-    mesh.userData.heading = Math.atan2(toWorld.z - fromWorld.z, toWorld.x - fromWorld.x)
+    mesh.userData.direction = toWorld.sub(fromWorld).normalize()
+    // The train model's nose points along local +X. Three.js rotates +X toward
+    // negative Z for a positive Y rotation, so invert the track's Z heading.
+    mesh.userData.heading = Math.atan2(-mesh.userData.direction.z, mesh.userData.direction.x)
     mesh.userData.train = train
-    mesh.scale.setScalar(props.selectedTrain?.id === train.id ? 1.18 : hoveredTrainId === train.id ? 1.1 : 1)
-    if (mesh.userData.label) mesh.userData.label.visible = props.selectedTrain?.id === train.id || hoveredTrainId === train.id
+    const isSelected = props.selectedTrain?.trainId === meshId || props.selectedTrain?.id === train.id
+    const size = isSelected
+      ? palette.selectedTrainScale
+      : hoveredTrainId === meshId ? palette.hoverTrainScale : palette.trainScale
+    mesh.scale.setScalar(size)
+    if (mesh.userData.label) mesh.userData.label.visible = isSelected || hoveredTrainId === meshId
   })
   trainMeshes.forEach((mesh, id) => {
     if (!activeIds.has(id)) {
@@ -416,11 +487,14 @@ const animate = () => {
     // keeps motion on the route without accumulating easing lag.
     mesh.position.copy(mesh.userData.target)
     mesh.rotation.y = mesh.userData.heading || 0
-    mesh.position.y = 0.05 + Math.sin(performance.now() / 170 + mesh.position.x) * 0.015
+    const wheelBottom = (0.115 - 0.046) * mesh.scale.x
+    mesh.position.y = palette.routeSurfaceHeight - wheelBottom + Math.sin(performance.now() / 170 + mesh.position.x) * 0.006
   })
-  const focus = trainMeshes.get(props.selectedTrain?.id) || trainMeshes.get(props.trains[0]?.id)
-  if (props.journeyMode && focus) {
-    const direction = new THREE.Vector3(Math.cos(focus.userData.heading || 0), 0, Math.sin(focus.userData.heading || 0))
+  const focus = trainMeshes.get(props.selectedTrain?.trainId || props.selectedTrain?.id) || trainMeshes.get(props.trains[0]?.trainId || props.trains[0]?.id)
+  const showStationLabels = camera.position.distanceTo(controls.target) < 16
+  stationLabels.forEach((label) => { label.visible = showStationLabels })
+  if ((props.journeyMode === 'follow' || props.journeyMode === 'cab') && focus) {
+    const direction = focus.userData.direction || new THREE.Vector3(1, 0, 0)
     if (props.journeyMode === 'cab') {
       const cabPosition = focus.position.clone().addScaledVector(direction, 0.12).setY(0.58)
       const viewAhead = focus.position.clone().addScaledVector(direction, 3).setY(0.48)
@@ -451,6 +525,10 @@ const resize = () => {
 }
 
 const pickTrain = (event) => {
+  if (pointerDragged) {
+    pointerDragged = false
+    return
+  }
   const bounds = renderer.domElement.getBoundingClientRect()
   const pointer = new THREE.Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
   raycaster.setFromCamera(pointer, camera)
@@ -462,18 +540,29 @@ const pickTrain = (event) => {
 }
 
 const hoverTrain = (event) => {
+  if (pointerDownPosition && event.buttons !== 0) {
+    const dx = event.clientX - pointerDownPosition.x
+    const dy = event.clientY - pointerDownPosition.y
+    if (dx * dx + dy * dy > 25) pointerDragged = true
+  }
   const bounds = renderer.domElement.getBoundingClientRect()
   const pointer = new THREE.Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
   raycaster.setFromCamera(pointer, camera)
   const hit = raycaster.intersectObjects([...trainMeshes.values()], true)[0]
   let object = hit?.object
   while (object && !object.userData.train) object = object.parent
-  const nextId = object?.userData.train?.id || null
+  const nextId = object?.userData.train ? object.userData.train.trainId || object.userData.train.id : null
   if (nextId === hoveredTrainId) return
   hoveredTrainId = nextId
   renderer.domElement.style.cursor = nextId ? 'pointer' : 'grab'
   syncTrains()
 }
+
+const beginPointerInteraction = (event) => {
+  pointerDownPosition = { x: event.clientX, y: event.clientY }
+  pointerDragged = false
+}
+const endPointerInteraction = () => { pointerDownPosition = null }
 
 const resetView = () => {
   controls.reset()
@@ -497,6 +586,8 @@ onMounted(() => {
   raycaster = new THREE.Raycaster()
   renderer.domElement.addEventListener('click', pickTrain)
   renderer.domElement.addEventListener('pointermove', hoverTrain)
+  renderer.domElement.addEventListener('pointerdown', beginPointerInteraction)
+  renderer.domElement.addEventListener('pointerup', endPointerInteraction)
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
@@ -510,12 +601,12 @@ onMounted(() => {
   sun.position.set(-8, 12, 9)
   sun.castShadow = true
   scene.add(sun)
-  addMapBase(); addRoutes(); syncTrains(); animate()
+  addMapBase(); stationLabels = addRoutes(); syncTrains(); animate()
   window.addEventListener('resize', resize)
 })
 watch(() => props.trains, syncTrains, { deep: true })
 watch(() => props.selectedTrain, syncTrains, { deep: true })
-onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); renderer?.domElement.removeEventListener('pointermove', hoverTrain); controls?.dispose(); trainMeshes.forEach((mesh) => { mesh.userData.label?.material.map?.dispose(); mesh.userData.label?.material.dispose() }); renderer?.dispose(); trainMeshes.clear() })
+onBeforeUnmount(() => { cancelAnimationFrame(animationFrame); window.removeEventListener('resize', resize); renderer?.domElement.removeEventListener('click', pickTrain); renderer?.domElement.removeEventListener('pointermove', hoverTrain); renderer?.domElement.removeEventListener('pointerdown', beginPointerInteraction); renderer?.domElement.removeEventListener('pointerup', endPointerInteraction); controls?.dispose(); trainMeshes.forEach((mesh) => { mesh.userData.label?.material.map?.dispose(); mesh.userData.label?.material.dispose() }); renderer?.dispose(); trainMeshes.clear() })
 </script>
 
 <template>
