@@ -1,9 +1,14 @@
+import { gzipSync } from 'node:zlib'
 import { fetchTYMCDepartures, fetchTYMCInterstation } from '../providers/tymc.mjs'
 import { fetchTRTCSchedules } from '../providers/trtc.mjs'
 import { fetchOpenDataVipDepartures } from '../providers/opendataVip.mjs'
 
 let cache = { expiresAt: 0, interstationTimes: [], departures: { departures: [] } }
 let trtcCache = { expiresAt: 0, schedules: [] }
+
+const compressedJson = (payload, headers = {}) => new Response(gzipSync(JSON.stringify(payload)), {
+  headers: { 'content-type': 'application/json; charset=utf-8', 'content-encoding': 'gzip', vary: 'Accept-Encoding', ...headers }
+})
 
 export default async (request) => {
   const operator = new URL(request.url).searchParams.get('operator')
@@ -29,7 +34,7 @@ export default async (request) => {
         trtcCache.expiresAt = Date.now() + 5 * 60 * 1000
       }
     }
-    return Response.json({ ok: true, mode: 'official-static', source: 'SCHEDULED', fetchedAt: new Date().toISOString(), schedules: trtcCache.schedules }, { headers: { 'cache-control': 'public, max-age=3600' } })
+    return compressedJson({ ok: true, mode: 'official-static', source: 'SCHEDULED', fetchedAt: new Date().toISOString(), schedules: trtcCache.schedules }, { 'cache-control': 'public, max-age=3600' })
   }
   if (operator !== 'TYMC') return Response.json({ ok: true, mode: 'official-not-configured', source: 'SCHEDULED', interstationTimes: [], departures: { departures: [] } })
   if (cache.expiresAt < Date.now()) {

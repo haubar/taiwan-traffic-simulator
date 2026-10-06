@@ -7,6 +7,9 @@ const lines = require('../../src/data/network.json')
 const CSV_FIELDS = ['SEQNO', 'RouteID', 'StationID', 'StationName', 'Direction', 'DestinationStaionID', 'DestinationStationName', 'DepartureTimes', 'ServiceDays', 'UpdateTime', 'EffectiveDate']
 const DAY_OFFSETS = [-1, 0, 1]
 const DWELL_SECONDS = 20
+const MATCH_TOLERANCE_SECONDS = 150
+const AVERAGE_SPEED_KPH = 35
+const MINIMUM_RUNTIME_SECONDS = 45
 
 const parseCsv = (text) => {
   const rows = []
@@ -29,9 +32,9 @@ const parseCsv = (text) => {
 }
 
 const parseDeparture = (value) => {
-  const match = value.match(/^\{\s*(\d+),.*?(\d{1,2}):(\d{2})/)
+  const match = value.match(/(\d{1,2}):(\d{2})/)
   if (!match) return null
-  return { sequence: Number(match[1]), seconds: Number(match[2]) * 3600 + Number(match[3]) * 60 }
+  return Number(match[1]) * 3600 + Number(match[2]) * 60
 }
 
 const parseServiceDay = () => {
@@ -50,13 +53,33 @@ const downloadRows = async (resourceId) => {
   return parseCsv(text)
 }
 
-const routeStations = (routeId) => {
+const routeStations = (routeId, destination) => {
   const baseId = routeId.split('-')[0]
   const line = lines.find((item) => item.id === baseId)
-  if (baseId !== 'O' || !routeId.endsWith('-2')) return line?.stations ?? []
+  if (baseId !== 'O' || destination !== 'O54') return line?.stations ?? []
   const branch = lines.find((item) => item.id === 'OL')
   const stem = line.stations.slice(0, line.stations.findIndex((station) => station.id === 'O12') + 1)
   return [...stem, ...(branch?.stations.slice(1) ?? [])]
+}
+
+const distanceMeters = (a, b) => {
+  const lat = ((a.lat + b.lat) / 2) * Math.PI / 180
+  const dx = (b.lon - a.lon) * 111320 * Math.cos(lat)
+  const dy = (b.lat - a.lat) * 110540
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+const estimateRuntime = (from, to) => Math.max(MINIMUM_RUNTIME_SECONDS, Math.round(distanceMeters(from, to) / (AVERAGE_SPEED_KPH * 1000 / 3600)))
+
+const matchDeparture = (source, candidates, used, expectedSec) => {
+  let selected = null, smallestDifference = MATCH_TOLERANCE_SECONDS + 1
+  for (const candidate of candidates) {
+    if (used.has(candidate) || candidate.seconds <= source.seconds) continue
+    const difference = Math.abs(candidate.seconds - expectedSec)
+    if (difference < smallestDifference) { selected = candidate; smallestDifference = difference }
+  }
+  if (selected) used.add(selected)
+  return selected
 }
 
 const getScheduleSources = () => {
@@ -68,41 +91,56 @@ export const fetchTRTCSchedules = async () => {
   const files = await Promise.all(getScheduleSources().map(async (source) => ({ source, rows: await downloadRows(source.resourceId) })))
   const schedules = []
   for (const { source, rows } of files) {
-    const trips = new Map()
+    const services = new Map()
     for (const row of rows) {
       const departure = parseDeparture(row.DepartureTimes)
-      if (!departure) continue
-      const tripKey = `${row.RouteID}|${row.Direction}|${row.DestinationStaionID}|${departure.sequence}`
-      const trip = trips.get(tripKey) ?? { routeId: row.RouteID, direction: Number(row.Direction), destination: row.DestinationStaionID, departures: new Map() }
-      trip.departures.set(row.StationID, departure.seconds)
-      trips.set(tripKey, trip)
+      if (!Number.isFinite(departure)) continue
+      const routeId = row.RouteID.split('-')[0]
+      const key = `${routeId}|${row.Direction}|${row.DestinationStaionID}`
+      const service = services.get(key) ?? { routeId, direction: Number(row.Direction), destination: row.DestinationStaionID, stations: new Map() }
+      const stationDepartures = service.stations.get(row.StationID) ?? []
+      stationDepartures.push({ seconds: departure, trainId: null })
+      service.stations.set(row.StationID, stationDepartures)
+      services.set(key, service)
     }
 
-    for (const [tripKey, trip] of trips) {
-      const stations = routeStations(trip.routeId)
-      const step = trip.direction === 0 ? 1 : -1
-      const originIndex = stations.findIndex((station, index) => trip.departures.has(station.id) && !trip.departures.has(stations[index - step]?.id))
-      const destinationIndex = stations.findIndex((station) => station.id === trip.destination)
-      if (originIndex < 0 || destinationIndex < 0 || originIndex === destinationIndex || Math.sign(destinationIndex - originIndex) !== step) continue
-      const routeLineId = trip.routeId.split('-')[0]
-      for (let index = originIndex; index !== destinationIndex; index += step) {
+    for (const service of services.values()) {
+      const stations = routeStations(service.routeId, service.destination)
+      const destinationIndex = stations.findIndex((station) => station.id === service.destination)
+      if (destinationIndex < 0) continue
+      const step = service.direction === 0 ? 1 : -1
+      const startIndex = step === 1 ? 0 : stations.length - 1
+      const endIndex = destinationIndex
+      if (Math.sign(endIndex - startIndex) !== step) continue
+
+      for (let index = startIndex; index !== endIndex; index += step) {
         const from = stations[index], to = stations[index + step]
-        const departureSec = trip.departures.get(from.id)
-        const nextDepartureSec = trip.departures.get(to.id)
-        if (!Number.isFinite(departureSec) || !Number.isFinite(nextDepartureSec) || nextDepartureSec <= departureSec) continue
-        const lineId = routeLineId === 'O' && (from.id.startsWith('O5') || to.id.startsWith('O5')) ? 'OL' : routeLineId
-        for (const dayOffset of DAY_OFFSETS) {
-          const shiftedDeparture = departureSec + dayOffset * 86400
-          const shiftedNextDeparture = nextDepartureSec + dayOffset * 86400
-          schedules.push({
-            id: `TRTC-${source.serviceDay}-${tripKey}-${index}-${dayOffset}`,
-            operator: 'TRTC', lineId, trainType: 'LOCAL', direction: step === 1 ? 0 : 1,
-            fromStation: from.id, toStation: to.id,
-            departureSec: shiftedDeparture,
-            arrivalSec: Math.max(shiftedDeparture + 30, shiftedNextDeparture - DWELL_SECONDS),
-            dwellUntilSec: shiftedNextDeparture,
-            source: 'SCHEDULED', trainId: `TRTC-${trip.routeId}-${trip.direction}-${tripKey.split('|').at(-1)}`
-          })
+        const fromDepartures = service.stations.get(from.id) ?? []
+        const toDepartures = service.stations.get(to.id) ?? []
+        fromDepartures.sort((a, b) => a.seconds - b.seconds)
+        toDepartures.sort((a, b) => a.seconds - b.seconds)
+        const usedTargets = new Set()
+        const routeLineId = from.id.startsWith('O5') || to.id.startsWith('O5') ? 'OL' : service.routeId
+        const runtime = estimateRuntime(from, to)
+
+        for (const departure of fromDepartures) {
+          if (!departure.trainId) departure.trainId = `TRTC-${source.serviceDay}-${service.routeId}-${service.direction}-${service.destination}-${from.id}-${departure.seconds}`
+          const expectedNextDeparture = departure.seconds + runtime + DWELL_SECONDS
+          const nextDeparture = matchDeparture(departure, toDepartures, usedTargets, expectedNextDeparture)
+          const arrival = nextDeparture ? Math.max(departure.seconds + 30, nextDeparture.seconds - DWELL_SECONDS) : departure.seconds + runtime
+          const dwellUntil = nextDeparture?.seconds ?? arrival + DWELL_SECONDS
+
+          for (const dayOffset of DAY_OFFSETS) {
+            const shift = dayOffset * 86400
+            schedules.push({
+              id: `${departure.trainId}-${index}-${dayOffset}`,
+              operator: 'TRTC', lineId: routeLineId, trainType: 'LOCAL', direction: step === 1 ? 0 : 1,
+              fromStation: from.id, toStation: to.id,
+              departureSec: departure.seconds + shift, arrivalSec: arrival + shift, dwellUntilSec: dwellUntil + shift,
+              source: 'SCHEDULED', trainId: `${departure.trainId}-${dayOffset}`
+            })
+          }
+          if (nextDeparture) nextDeparture.trainId = departure.trainId
         }
       }
     }
