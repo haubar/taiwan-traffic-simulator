@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import sceneConfig from '../data/3dSceneConfig.json' with { type: 'json' }
 
 const props = defineProps({ lines: Array, trains: Array, selectedTrain: Object, journeyMode: String, visualStyle: String })
 const emit = defineEmits(['select'])
@@ -11,8 +12,107 @@ const trainMeshes = new Map()
 let hoveredTrainId = null
 const world = (x, y) => new THREE.Vector3((x - 620) / 55, 0, (y - 260) / 55)
 const cute = () => props.visualStyle === 'cute'
+const palette = sceneConfig.diorama
+
+const distanceToSegment = (point, start, end) => {
+  const dx = end.x - start.x
+  const dz = end.z - start.z
+  const lengthSquared = dx * dx + dz * dz
+  const t = lengthSquared ? THREE.MathUtils.clamp(((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSquared, 0, 1) : 0
+  return Math.hypot(point.x - (start.x + t * dx), point.z - (start.z + t * dz))
+}
+
+const addDioramaCity = () => {
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(palette.cityWidth, 0.24, palette.cityDepth), new THREE.MeshStandardMaterial({ color: palette.platform, roughness: 0.9 }))
+  ground.position.y = -0.34
+  ground.receiveShadow = true
+  scene.add(ground)
+
+  const surface = new THREE.Mesh(new THREE.PlaneGeometry(palette.cityWidth - 0.12, palette.cityDepth - 0.12), new THREE.MeshStandardMaterial({ color: palette.ground, roughness: 1 }))
+  surface.rotation.x = -Math.PI / 2
+  surface.position.y = -0.215
+  surface.receiveShadow = true
+  scene.add(surface)
+
+  const spacing = palette.buildingSpacing
+  const roadMaterial = new THREE.MeshStandardMaterial({ color: palette.road, roughness: 1 })
+  const roadCountX = Math.floor(palette.cityWidth / (spacing * palette.streetEvery))
+  const roadCountZ = Math.floor(palette.cityDepth / (spacing * palette.streetEvery))
+  for (let i = -roadCountX; i <= roadCountX; i += 1) {
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(0.22, palette.cityDepth - 0.2), roadMaterial)
+    road.rotation.x = -Math.PI / 2
+    road.position.set(i * spacing * palette.streetEvery, -0.205, 0)
+    scene.add(road)
+  }
+  for (let i = -roadCountZ; i <= roadCountZ; i += 1) {
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(palette.cityWidth - 0.2, 0.22), roadMaterial)
+    road.rotation.x = -Math.PI / 2
+    road.position.set(0, -0.204, i * spacing * palette.streetEvery)
+    scene.add(road)
+  }
+
+  const routeSegments = props.lines.flatMap((line) => line.stations.slice(1).map((station, index) => ({
+    start: world(line.stations[index].x, line.stations[index].y),
+    end: world(station.x, station.y)
+  })))
+  const columns = Math.floor(palette.cityWidth / spacing)
+  const rows = Math.floor(palette.cityDepth / spacing)
+  const buildingCapacity = columns * rows
+  const buildingGeometry = new THREE.BoxGeometry(1, 1, 1)
+  const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, vertexColors: true })
+  const buildings = new THREE.InstancedMesh(buildingGeometry, buildingMaterial, buildingCapacity)
+  const dummy = new THREE.Object3D()
+  const color = new THREE.Color()
+  let buildingIndex = 0
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const x = (column - (columns - 1) / 2) * spacing
+      const z = (row - (rows - 1) / 2) * spacing
+      if (column % palette.streetEvery === 0 || row % palette.streetEvery === 0) continue
+      const noise = Math.abs(Math.sin(column * 127.1 + row * 311.7) * 43758.5453) % 1
+      if (noise < 0.15) continue
+      if (routeSegments.some(({ start, end }) => distanceToSegment({ x, z }, start, end) < palette.routeClearance)) continue
+      const width = 0.28 + noise * 0.2
+      const depth = 0.28 + ((noise * 17.3) % 1) * 0.2
+      const height = 0.22 + ((noise * 29.7) % 1) * 0.9
+      dummy.position.set(x, -0.2 + height / 2, z)
+      dummy.scale.set(width, height, depth)
+      dummy.updateMatrix()
+      buildings.setMatrixAt(buildingIndex, dummy.matrix)
+      color.set(palette.buildingColors[Math.floor(noise * palette.buildingColors.length)])
+      buildings.setColorAt(buildingIndex, color)
+      buildingIndex += 1
+    }
+  }
+  buildings.count = buildingIndex
+  buildings.castShadow = true
+  buildings.receiveShadow = true
+  scene.add(buildings)
+
+  const treePositions = [[-9, -3.9], [-7.5, 3.9], [-4.5, -3.9], [-1.5, 3.9], [2, -3.9], [5, 3.9], [8, -3.9], [9.6, 2.8]]
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.035, 0.05, 0.2, 7), new THREE.MeshStandardMaterial({ color: palette.treeTrunk }), treePositions.length)
+  const crowns = new THREE.InstancedMesh(new THREE.SphereGeometry(0.17, 9, 7), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, vertexColors: true }), treePositions.length)
+  treePositions.forEach(([x, z], index) => {
+    dummy.position.set(x, -0.08, z)
+    dummy.updateMatrix()
+    trunks.setMatrixAt(index, dummy.matrix)
+    dummy.position.set(x, 0.12, z)
+    dummy.scale.set(1, 1.1, 1)
+    dummy.updateMatrix()
+    crowns.setMatrixAt(index, dummy.matrix)
+    color.set(palette.treeColors[index % palette.treeColors.length])
+    crowns.setColorAt(index, color)
+  })
+  trunks.castShadow = true
+  crowns.castShadow = true
+  scene.add(trunks, crowns)
+}
 
 const addMapBase = () => {
+  if (cute()) {
+    addDioramaCity()
+    return
+  }
   const ground = new THREE.Mesh(new THREE.BoxGeometry(23, 0.25, 11), new THREE.MeshStandardMaterial({ color: cute() ? 0xa7d8c8 : 0x172d43, roughness: cute() ? 0.7 : 0.9 }))
   ground.position.y = -0.35
   scene.add(ground)
@@ -48,14 +148,22 @@ const addRoutes = () => {
   props.lines.forEach((line) => {
     const points = line.stations.map((station) => world(station.x, station.y).setY(0.08))
     const routeColor = cute() ? new THREE.Color(line.color).lerp(new THREE.Color(0xffffff), 0.28) : line.color
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: routeColor })))
+    if (cute()) {
+      const route = new THREE.CurvePath()
+      points.slice(1).forEach((point, index) => route.add(new THREE.LineCurve3(points[index], point)))
+      scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.09, 7, false), new THREE.MeshStandardMaterial({ color: palette.routeBed, roughness: 0.8 })))
+      scene.add(new THREE.Mesh(new THREE.TubeGeometry(route, points.length * 2, 0.038, 6, false), new THREE.MeshStandardMaterial({ color: routeColor, roughness: 0.65, emissive: routeColor, emissiveIntensity: 0.06 })))
+    } else {
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: routeColor })))
+    }
     line.stations.forEach((station) => {
-      const marker = new THREE.Mesh(new THREE.CylinderGeometry(cute() ? 0.13 : 0.1, cute() ? 0.13 : 0.1, 0.18, 12), new THREE.MeshStandardMaterial({ color: routeColor, emissive: routeColor, emissiveIntensity: cute() ? 0.08 : 0.25 }))
+      const marker = new THREE.Mesh(new THREE.CylinderGeometry(cute() ? 0.11 : 0.1, cute() ? 0.11 : 0.1, cute() ? 0.09 : 0.18, 12), new THREE.MeshStandardMaterial({ color: cute() ? palette.station : routeColor, emissive: routeColor, emissiveIntensity: cute() ? 0.04 : 0.25 }))
       const position = world(station.x, station.y)
-      marker.position.set(position.x, 0.2, position.z)
+      marker.position.set(position.x, cute() ? 0.14 : 0.2, position.z)
       scene.add(marker)
-      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.44 : 0.34, cute() ? 0.28 : 0.22, cute() ? 0.44 : 0.34), new THREE.MeshStandardMaterial({ color: cute() ? 0xfff2c6 : 0xe5edf4, roughness: cute() ? 0.55 : 0.7 }))
-      stationBuilding.position.set(position.x, 0.12, position.z)
+      const stationBuilding = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.28 : 0.34, cute() ? 0.12 : 0.22, cute() ? 0.28 : 0.34), new THREE.MeshStandardMaterial({ color: cute() ? 0xffffff : 0xe5edf4, roughness: cute() ? 0.72 : 0.7 }))
+      stationBuilding.position.set(position.x, cute() ? 0.23 : 0.12, position.z)
+      stationBuilding.castShadow = true
       scene.add(stationBuilding)
     })
   })
@@ -64,24 +172,27 @@ const addRoutes = () => {
 const createTrainMesh = (train) => {
   const color = props.lines.find((line) => line.id === train.lineId)?.color || '#ffffff'
   const group = new THREE.Group()
-  const body = new THREE.Mesh(cute() ? new THREE.CapsuleGeometry(0.14, 0.42, 5, 12) : new THREE.BoxGeometry(0.62, 0.22, 0.2), new THREE.MeshStandardMaterial({ color: train.trainType === 'EXPRESS' ? (cute() ? 0xffb84d : 0xe5a83b) : (cute() ? new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.2) : color), metalness: cute() ? 0 : 0.25, roughness: cute() ? 0.65 : 0.35 }))
-  if (cute()) body.rotation.z = Math.PI / 2
-  body.position.y = cute() ? 0.34 : 0.28
+  const body = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.78 : 0.62, cute() ? 0.3 : 0.22, cute() ? 0.34 : 0.2), new THREE.MeshStandardMaterial({ color: cute() ? 0xfafcff : train.trainType === 'EXPRESS' ? 0xe5a83b : color, metalness: cute() ? 0.02 : 0.25, roughness: cute() ? 0.48 : 0.35 }))
+  body.position.y = cute() ? 0.33 : 0.28
   body.castShadow = true
   group.add(body)
-  const roof = new THREE.Mesh(cute() ? new THREE.SphereGeometry(0.15, 12, 8) : new THREE.BoxGeometry(0.48, 0.06, 0.17), new THREE.MeshStandardMaterial({ color: 0xe7f4ff }))
-  roof.position.y = 0.43
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.54 : 0.48, cute() ? 0.045 : 0.06, cute() ? 0.3 : 0.17), new THREE.MeshStandardMaterial({ color: cute() ? 0xe7eff7 : 0xe7f4ff }))
+  roof.position.y = cute() ? 0.49 : 0.43
   group.add(roof)
   if (cute()) {
-    for (const x of [-0.07, 0.07]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0x26364b }))
-      eye.position.set(0.15, 0.37, x)
-      group.add(eye)
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.07, 0.012), new THREE.MeshStandardMaterial({ color, roughness: 0.45 }))
+    stripe.position.set(0, 0.29, 0.176)
+    group.add(stripe)
+    for (const x of [-0.25, 0.25]) for (const z of [-0.145, 0.145]) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.035, 10), new THREE.MeshStandardMaterial({ color: 0x364657, roughness: 0.8 }))
+      wheel.rotation.x = Math.PI / 2
+      wheel.position.set(x, 0.19, z)
+      group.add(wheel)
     }
   }
   for (const x of [-0.2, 0, 0.2]) {
-    const window = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.07, 0.012), new THREE.MeshBasicMaterial({ color: 0x102238 }))
-    window.position.set(x, 0.31, 0.107)
+    const window = new THREE.Mesh(new THREE.BoxGeometry(cute() ? 0.14 : 0.12, cute() ? 0.09 : 0.07, 0.012), new THREE.MeshBasicMaterial({ color: 0x29465d }))
+    window.position.set(x, cute() ? 0.37 : 0.31, cute() ? 0.176 : 0.107)
     group.add(window)
   }
   return group
@@ -172,19 +283,25 @@ const hoverTrain = (event) => {
 
 const resetView = () => {
   controls.reset()
-  camera.position.set(0, 13, 15)
+  if (cute()) camera.position.set(...palette.cameraPosition)
+  else camera.position.set(0, 13, 15)
   controls.target.set(0, 0, 0)
   controls.update()
 }
 
 onMounted(() => {
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x0b1929)
+  scene.background = new THREE.Color(cute() ? palette.background : 0x0b1929)
   camera = new THREE.PerspectiveCamera(42, viewport.value.clientWidth / viewport.value.clientHeight, 0.1, 100)
-  camera.position.set(0, 13, 15)
+  if (cute()) camera.position.set(...palette.cameraPosition)
+  else camera.position.set(0, 13, 15)
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight)
+  if (cute()) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.15
+  }
   renderer.shadowMap.enabled = true
   viewport.value.appendChild(renderer.domElement)
   raycaster = new THREE.Raycaster()
@@ -198,9 +315,9 @@ onMounted(() => {
   controls.maxDistance = 32
   controls.maxPolarAngle = Math.PI / 2.05
   controls.target.set(0, 0, 0)
-  scene.add(new THREE.HemisphereLight(0xb8dcff, 0x183047, 2.2))
-  const sun = new THREE.DirectionalLight(0xffffff, 2.5)
-  sun.position.set(-5, 12, 7)
+  scene.add(new THREE.HemisphereLight(cute() ? 0xffffff : 0xb8dcff, cute() ? 0x9badbd : 0x183047, cute() ? palette.hemisphereIntensity : 2.2))
+  const sun = new THREE.DirectionalLight(0xffffff, cute() ? palette.sunIntensity : 2.5)
+  sun.position.set(cute() ? -8 : -5, 12, cute() ? 9 : 7)
   sun.castShadow = true
   scene.add(sun)
   addMapBase(); addRoutes(); syncTrains(); animate()

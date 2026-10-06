@@ -19,7 +19,7 @@ const {activeTrains}=useTrainPosition(lines,simulationSchedules,simSec)
 const selected=ref(null)
 const viewMode=ref('flat')
 const journeyMode=ref('overview')
-const visualStyle=ref('tech')
+const visualStyle=ref('cute')
 const scheduleRows = computed(() => activeTrains.value.slice().sort((a,b) => a.arrivalSec - b.arrivalSec).slice(0, 14))
 const dashboardOpen = ref(true)
 const dashboardStats = computed(() => {

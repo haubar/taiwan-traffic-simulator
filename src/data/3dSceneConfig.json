@@ -1,0 +1,23 @@
+{
+  "diorama": {
+    "background": "#eaf1fa",
+    "ground": "#f7f9fc",
+    "platform": "#dce8f5",
+    "road": "#e4edf7",
+    "roadMarking": "#ffffff",
+    "buildingColors": ["#ffffff", "#edf3f9", "#e2edf7", "#f3f6fa", "#d7e6f5"],
+    "treeTrunk": "#a78d72",
+    "treeColors": ["#9bcfac", "#83c5a0", "#b2d9ae"],
+    "routeBed": "#d6e5f5",
+    "station": "#ffffff",
+    "cityWidth": 23,
+    "cityDepth": 11,
+    "buildingSpacing": 0.72,
+    "streetEvery": 4,
+    "routeClearance": 0.58,
+    "cameraPosition": [14, 19, 17],
+    "cameraTarget": [0, 0, 0],
+    "hemisphereIntensity": 2.5,
+    "sunIntensity": 2.0
+  }
+}
